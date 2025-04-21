@@ -78,7 +78,8 @@ jobs:
       - name: Concat ZXDB
         run: |
           ./MAKE.bat cmd copy /b/y SpectralNaked.exe+src\res\embed+src\res\zxdb\Spectral.db.gz+src\res\embed unsigned-spectral.exe
-          ./MAKE.bat cmd copy /b/y signed\*.exe+src\res\embed+src\res\zxdb\Spectral.db.gz+src\res\embed signed-spectral.exe
+          ./MAKE.bat cmd copy /b/y signed\*.exe signed-spectral.exe
+      #   ./MAKE.bat cmd copy /b/y signed\*.exe+src\res\embed+src\res\zxdb\Spectral.db.gz+src\res\embed signed-spectral.exe
 
       # Upload the signed artifact
       - name: Upload Signed Windows Artifact
