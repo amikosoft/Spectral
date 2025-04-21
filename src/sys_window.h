@@ -41,7 +41,8 @@ char* prompt(const char *title, const char *body, const char *defaults ) {
     static char buffer[256]; buffer[0] = '\0';
     char *cmd = va("osascript -e 'text returned of (display dialog \"%s - %s\" default answer \"%s\")'", title, body, defaults);
     for( FILE *fp = popen(cmd, "r"); fp; pclose(fp), fp = 0 ) {
-        fgets(buffer, 256, fp);
+        if( fgets(buffer, 256, fp) >= 0 )
+            while(strchr("\r\n", buffer[strlen(buffer)-1])) buffer[strlen(buffer)-1] = '\0';
     }
     puts(buffer);
     return buffer;
@@ -131,7 +132,8 @@ char* prompt(const char *title, const char *body, const char *defaults ) {
     char *cmdk = va("kdialog --title \"%s\" --inputbox \"%s\" \"%s\"", title, body, defaults);
     char *cmdz = va("zenity --title \"%s\" --entry --text \"%s\" --entry-text \"%s\"", title, body, defaults);
     for( FILE *fp = popen(va("%s || %s", cmdk, cmdz), "r"); fp; pclose(fp), fp = 0 ) {
-        fgets(buffer, 256, fp);
+        if( fgets(buffer, 256, fp) >= 0 )
+            while(strchr("\r\n", buffer[strlen(buffer)-1])) buffer[strlen(buffer)-1] = '\0';
     }
     puts(buffer);
     return buffer;

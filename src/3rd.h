@@ -82,3 +82,5 @@
 
 #define DR_MP3_IMPLEMENTATION
 #include "3rd_drmp3.h"
+
+#include "3rd_arc4.h"
