@@ -104,7 +104,9 @@ int dir_yield(dir *d, const char *pathfile, char *name, int namelen) {
             if( is_dir && ep->d_name[0] == '.' ) continue;
 
             // add
+            if( is_dir ) strcat(name, "/");
             dir_entry de = { STRDUP(name), is_dir ? 0 : st.st_size, is_dir };
+            if( is_dir ) name[strlen(name)-1] = '\0';
             d->entry = (dir_entry*)REALLOC(d->entry, ++d->count * sizeof(dir_entry));
             d->entry[d->count-1] = de;
             // recurse

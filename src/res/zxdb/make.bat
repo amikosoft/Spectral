@@ -1,6 +1,7 @@
 @echo off
 
 rem checks. compile if needed
+where /q rar.exe || (echo cannot find rar.exe in path && exit /b)
 where /q python.exe || (echo cannot find python.exe in path && exit /b)
 where /q sqlite3.exe || (cl sqlite3.c shell.c /MT || exit /b)
 where /q zxdb2txt.exe || (cl zxdb2txt.c sqlite3.c -DDEV=0 /MT /Ox /Oy || exit /b)
@@ -38,6 +39,8 @@ python -m gzip -d Spectral.db.gz && git add Spectral.db
 
 rem do 0..64K range in reverse order to avoid being threated as false positive (Trojan:Win32/Wacatac.B!ml) (Windows Defender)
 zxdb2txt 65536..0 > Spectral.db && python -m gzip --best Spectral.db && echo Ok!
+
+where rar.exe && rar a Spectral.db.rar Spectral.db
 
 git diff Spectral.db >> Spectral.db.diff && git add Spectral.db.diff && git rm Spectral.db -f
 )
