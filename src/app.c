@@ -16,13 +16,16 @@
 // [ ] snow: Robocop 3, iLogicAll, Fantasy World Dizzy, Astro Marine Corps, Vectron...
 // [ ] tap: romload trap
 // [ ] coop: ghost mode (single player vs ghost) time-based games: outrun, enduro
+// [ ] disasm: breakpoint on a source code expression with wildcards. ie, break on "HALT\n*\nJ*\n"
+
 
 // @todo
 // [ ] push/pop zx state for thumbnails and miniatures
 // @fixme
 // [ ] contention +3: rotatrix, gauntlet3.dsk
 // [ ] windows signed binary (does not run)
-// [ ] linux ZX_FOLDER
+// [ ] linux polyfill (does not work)
+// [ ] linux ZX_FOLDER, search tab does not work
 
 // @timings
 // [ ] overscan/border: sentinel (48), defenders of the earth (+3), dark star (hiscore), gyroscope II (?), super wonder boy (pause)
@@ -152,7 +155,7 @@
 // [ ] XL1 (Compilation)
 #endif
 
-#define SPECTRAL "v1.07"
+#define SPECTRAL "v1.08-WIP"
 
 #if NDEBUG >= 2
 #define DEV 0
@@ -322,13 +325,13 @@ int load_config() {
     int errors = 0;
     if( !ZX_PLAYER ) for( FILE *fp = fopen(".Spectral/Spectral.ini", "rt"); fp; fclose(fp), fp = 0 ) {
         while( !feof(fp) ) {
-        int tmp; char buf[128]; errors += fscanf(fp, "%[^=]=%d ", buf, &tmp) > 1;
+        int tmp; char buf[128] = {0}; errors += fscanf(fp, "%[^=]=%d ", buf, &tmp) > 1;
         #define INI_LOAD_NUM(opt) if( strcmpi(buf, #opt) == 0 ) opt = tmp; else 
         INI_OPTIONS_NUM(INI_LOAD_NUM) {}
         }
         rewind(fp);
         while( !feof(fp) ) {
-        char key[128],val[128]; errors += fscanf(fp, "%[^=]=%[^\n] ", key, val) > 1;
+        char key[128] = {0},val[128] = {0}; errors += fscanf(fp, "%[^=]=%[^\n] ", key, val) > 1;
         #define INI_LOAD_STR(opt) if( strcmpi(key, #opt) == 0 ) opt = STRDUP(val); else 
         INI_OPTIONS_STR(INI_LOAD_STR) {}
         }
@@ -1742,7 +1745,7 @@ if( do_runahead == 0 ) {
             break; case 'HELP':  help();
 
             break; case 'SCAN':  for( const char *f = cmdarg_ && cmdarg_[0] ? cmdarg_ : app_selectfolder("Select games folder"); f ; f = 0 ) {
-                                    ZX_FOLDER && REALLOC((void*)ZX_FOLDER, 0);
+                                    // ZX_FOLDER && REALLOC((void*)ZX_FOLDER, 0); // @leak (lubuntu16 would display rubbish otherwise)
                                     rescan( ZX_FOLDER = STRDUP(f) ), /*active = !!numgames,*/ ui_dialog_new(NULL);
                                 }
 

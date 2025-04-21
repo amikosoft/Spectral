@@ -13,7 +13,7 @@ Code is highly experimental and prone to change in the future. I will keep alter
 </p>
 
 # Roadmap and features
-- [ ] Extra accurate Z80 backend. <!-- @todo: contended ports, memptr, snow, Q, floating bus (+2a/+3) -->
+- [ ] Extra accurate Z80 backend. <!-- @todo: memptr, snow, Q, floating bus (+2a/+3) -->
 - [ ] RZX support. <!-- @todo: rzx loadsave http://ramsoft.bbk.org.omegahg.com/rzxform.html -->
 - [ ] Netplay.
 - [ ] Optimized.
@@ -22,7 +22,7 @@ Code is highly experimental and prone to change in the future. I will keep alter
 - [x] Z80. Z80 Disassembler. 3.5/7/14 MHz.
 - [x] 16, 48, 128, +2, +2A, +3, Pentagon128 models.
 - [x] Issue 2/3 keyboards.
-- [x] Multicolor ULA/ULA+ graphics. 25/30/50/60Hz fps lock.
+- [x] Cycle accurate multicolor ULA/ULA+ graphics. 25/30/50/60Hz fps lock.
 - [x] Beeper/AY chips. Turbosound/Turbo-AY (Pentagon only).
 - [x] Kempston mouse. <!-- @todo: AMX mouse.-->
 - [x] Kempston/Fuller/Cursor/Sinclair joysticks. Gamepad support (Windows, Linux). <!-- @todo: invert joystick/mouse axes/buttons -->

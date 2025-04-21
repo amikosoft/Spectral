@@ -3,6 +3,13 @@
 // runahead
 // - bonanza bros.dsk
 
+// .sav
+// - MDA demo cannot restore the state fully (AY regs?)
+
+// Woodster "overscan.tap: that LD (#8182),HL changes the int vector for the next int to end the loop 
+// so break at #8244 to get the loop value; #0C33 for 48k, #0C71 for 128k, #0E20 for +3"
+// i got #0CC3 (+144), #0D01 (+144), #0DE1 (-63)
+
 // tape buttons
 
 // tape
