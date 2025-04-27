@@ -28,7 +28,7 @@
 // [ ] contention: gauntlet3.dsk
 // [ ] floating or INT: sidewize frozen
 // [ ] floating: arkanoid way too fast, sidewize blinks
-// [ ] linux polyfill (does not work)
+// [ ] linux polyfill (does not work yet)
 // [ ] platoon.tap.zip with .txt file in zipentry #0
 // [ ] dsk/corrupt vram: cesare plus3.dsk, italia90.dsk
 // [ ] floatspy (all models need +1 TS; 128 also needs +2TS because of bonanzadsk)
@@ -164,7 +164,7 @@
 // [ ] XL1 (Compilation)
 #endif
 
-#define SPECTRAL "v1.08"
+#define SPECTRAL "v1.09-wip"
 
 #if NDEBUG >= 2
 #define DEV 0
