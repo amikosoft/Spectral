@@ -16,6 +16,7 @@
 #include "3rd_tigroskeys.h"
 #include "3rd_tigrrendermap.h"
 #include "3rd_tigrwindowed.h"
+#include "3rd_tigrfocused.h"
 #undef border
 #undef run
 
@@ -46,6 +47,7 @@
 #include "3rd_dir.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "3rd_stbimage.h"
+#define STBIR__HEADER_FILENAME "3rd_stbimage_resize2.h"
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "3rd_stbimage_resize2.h"
 #define THREAD_IMPLEMENTATION

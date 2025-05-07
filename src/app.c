@@ -19,6 +19,7 @@
 // scan folder if dropped or supplied via cmdline
 
 // @todo:
+// [ ] autoload.dsk: rex, after the war re-imagined
 // [ ] pok: mask menu + undo
 // [ ] zx: multiface1, multiface128/genie128, multiface3
 // [ ] autofps: exolon/alien8 @ 50fps
@@ -30,11 +31,10 @@
 // [ ] media: load romtrap
 // [ ] media: push/pop zx state for thumbnails and miniatures
 // [x] zxdb: emit warning on failed game downloads. or, do not proceed into boot() at least
-// [x] ui: adjust chrX/chrY in menus, so we can use zoom x3/x4 in low screen resolutions
 // [ ] tape buttons
 // [ ] tape 'tape' wav
 // [ ] tape idea: add initial leading blank silence
-// [ ] tape idea: do not add mega silence if "side 1" is first block (italy1990winnersedition)
+// [ ] tape idea: do not add mega silence if "side A/1" is first block (HuntForRedOctober, italy1990winnersedition)
 // [ ] tape idea: remove most of extremely large ending silences (krakatoa)
 // [ ] tape idea: eat contiguous silences while tape polarity does not change and autoplay is on (welcometohollywood)
 // [ ] gallery: search should use our textinput widget
@@ -58,40 +58,41 @@
 // [ ] zxdb: afterburner/arkanoid: cheats
 // [ ] ui_print(): dims not very accurate when ui_monospaced==0. see chasehq2 instructions boundings
 // [ ] mp3: @leak
-// [x] mp3: [N] 404 /pub/sinclair/music/bonustracks/DeseertIsalndFloppies(DanDefoe&TheCastaways).mp3.zip|0|27|Bonus soundtrack(s) in MP3 format
-// [x] sav: mask3.sav, cybernoid2.sav, jack2.sav
-// [ ] lower bottom megashock/
-// [ ] turborom + bleepload (sentinel, sidewize, crosswize, jaws)
+// [ ] .sav: mask3.sav, cybernoid2.sav, jack2.sav
+// [ ] .sav: 2bits off for tapes? (close the app while attribs for cauldron2 screen$ are dumped. restart the emulator; tape_ticks/ticks?)
+// [ ] DEV wont fix: emit beep during .tzx debugprints to console - Twister(zxdb), LaAbadiaDelCrimen (turbo), AndyCapp(zxdb)
 
 // @fixme
+// [x] turborom + bleepload (sentinel, sidewize, crosswize, jaws)
+// [ ] combatschool.ay
+// [x] too much audio latency?
+// [ ] p128 bottom line (128 menu)
+// [ ] lower bottom megashock/
+// [x] 48irons.trd
+// [ ] TTRacer WITHOUT turborom
+// [ ] p128 .sna
+// [ ] pzx/csw/gdb + turborom
 // [x] KLmode broken
-// [x] TurboAY + output[6]
-// [x] linux tigr may ignore x2/x3 zoom settings and go x4 if (384px native * (125/100) dpi == 1920px) which matches desktop monitor
 // [ ] linux polyfill (does not work yet)
 // [ ] contention: gauntlet3.dsk
 // [ ] floating: arkanoid way too fast, sidewize too slow and/or blinks
 // [ ] floating: floatspy (all models need +1 TS; 128 also needs +2TS because of bonanzadsk)
-// [ ] zxdb platoon.tap.zip with .txt file in zipentry #0
-// [ ] dsk/corrupt vram: cesare plus3.dsk, italia90.dsk
+// [ ] dsk/corrupt vram: cesare plus3.dsk, italia90.dsk, alien storm.dsk, gng.dsk (paging bug?)
 // [*] lightgun: billy the kid, rookie #4239, space smugglers
 // [ ] audio: after 3 mins of play, user got white noise (jetpac)
-// [x] screen: should use overlay, and any mouse button or keypress should remove that. next step would be to add a gallery for screenshots
-// [x] gallery: thumbnails 12x12 could use a magnified hovering rect
-// [x] gallery: dim background as game list is difficult to read sometimes
-// [ ] gallery: wordwap needed when thumbnail names are too large: "Sherlock Holmes: The Lamberley Mystery (1990)(Zenobi Software)"
+// [ ] gallery: wordwrap needed when thumbnail names are too large: "Sherlock Holmes: The Lamberley Mystery (1990)(Zenobi Software)"
 // [ ] mouse: wheel linux (@juntelart)
 // [ ] mouse: wheel inverted (@hexaee, @korb)
-// [x] media: wrong clear media + reset model: after loading a game, then changing to another model e.g. 128K to 48K, the previous game automatically starts to load. It also happens if you reset the machine in between
-// [x] ui: X2/X1 selector
-// [x] ui: can the pause and record icons (top left and top right) disappear?
-// [x] zxdb: ZX_MEDIA (ZX_LASTLOAD=#23#2#1)
-// [x] zxdb: info gone after save state reload.
-// [ ] zxdb: wrong 48/128 selection: elite, narc, nigelmansell
-//     Elite would not load. This is the entry titled: Elite (1985)(Firebird Software Ltd). It starts to load but after the loader, the main block of code shows a red and blue flashing border and the loading noise goes away.
-// [ ] zxdb: infer zx model for local files when the filename is an exact match: plyuk.tap [ok, so 128k], jaws.z80 [no, so 48k]
-//     1st) read zxdb info (Elite: 48k/128k)
-//     2nd) read filename info (Elite128_2.tzx)
-//     3rd) read basic program "ELITE48" (48k)
+// [x] zxdb platoon.tap.zip with .txt file in zipentry #0
+// [x] zxdb: do not infer zxdb model from local files with entries >1 hits. eg, jaws.tap
+// [x] zxdb: improve 48/128 model detection
+//     1st) read zxdb info (Elite: 48k/128k, so 128k), unless
+//     2nd) read filename info (Elite48_2.tzx, so 48k), unless
+//     3rd) read basic program "ELITE128", so 128k, unless
+//     4th) re-selected model from UI
+//     cases: plyuk.zip/plyuk128.bas, ringo.zip/ringo128.bas td128/td128.bas
+//     cases: oldtower(48k).tap, oldtower(128k).tap, oldtower(pentagon).tap
+//     cases: elite, saboteur2, cabal, narc, nigelmansell, lonewolf3, ...
 
 // @timings
 // [ ] overscan/border: sentinel (48), defenders of the earth (+3), dark star (hiscore), gyroscope II (?), super wonder boy (pause)
@@ -202,7 +203,7 @@
 // [ ] XL1 (Compilation)
 #endif
 
-#define SPECTRAL "v1.09b"
+#define SPECTRAL "v1.10"
 
 #if NDEBUG >= 2
 #define DEV 0
@@ -222,13 +223,11 @@
 // https://foro.speccy.org/viewtopic.php?t=2319
 
 // @todo:
-// [x] widescreen fake borders
 // [ ] animated states
+// [ ] zxdb on hover: show animated state if exists. show loading screen otherwise.
 // [ ] auto-saves, then F11 to rewind. use bottom bar
 // [ ] live coding disasm (like bonzomatic)
 // [ ] convert side-b/mp3s into voc/pulses
-// [ ] db interface (F2 to rename)
-//     on hover: show animated state if exists. show loading screen otherwise.
 // [ ] embed torrent server/client to mirror the WOS/ZXDB/NVG/Archive.org distros
 //     http://www.kristenwidman.com/blog/33/how-to-write-a-bittorrent-client-part-1/
 //     https://wiki.theory.org/BitTorrentSpecification
@@ -430,7 +429,7 @@ bool load_overlay(const void *data, int len) {
 
 int desktop_w, desktop_h;
 int app_wouldfit(int zoom) { // given some zoom level, check whether an upcoming window would fit desktop size
-    return 1;
+    return 1; // unlock all zoom levels unconditionally
     float scale = 0.90; // 0.90 to allow for some boundary clipping
     return (zoom * _256 * scale) <= desktop_w && (zoom * _192 * scale) <= desktop_h;
 }
@@ -465,36 +464,11 @@ int app_create(const char *title, int fs, int zoom) {
 }
 
 
-// Simple DC offset removal filter
-// The AY-3-8910 (and similar PSG chips) often produce output with non-zero average (DC bias) due to asymmetrical square waves or envelope shapes.
-// If we don't remove it:
-// - The waveform can look vertically offset when plotted.
-// - It can cause low-frequency rumble or speaker clicks when played back.
-// This function keeps the waveform centered around zero, both for visualization and audio quality.
-typedef struct {
-    float prev_input;
-    float prev_output;
-    float alpha;
-} dcr_t;
-void dcr_init(dcr_t* dc, float sample_rate, float cutoff_hz) {
-    float rc = 1.0f / (2.0f * 3.1415926535f * cutoff_hz);
-    float dt = 1.0f / sample_rate;
-    dc->alpha = rc / (rc + dt);
-
-    dc->prev_input = 0.0f;
-    dc->prev_output = 0.0f;
-}
-float dcr_filter(dcr_t* dc, float s) {
-    float out = s - dc->prev_input + dc->alpha * dc->prev_output;
-    dc->prev_input = s;
-    dc->prev_output = out;
-    return out;
-}
-// x1 Beeper + x3 AY1 + (x3 AY2) oscilloscopes
-// inspiration: https://www.youtube.com/watch?v=EXFngtcADc8
-void draw_audio(Tigr *ui, int CHANNELS, float *channels[4], int count) {
+// x1 Beeper (+ x3 AY1 (+ x3 AY2)) oscilloscopes
+void draw_audio(Tigr *ui, int CHANNELS, float *channels[7], int count) {
     // based on code by SteveJohn (Zen emulator)
     // MIT licensed, https://github.com/stevehjohn/Zen/blob/master/LICENSE
+    // see: https://www.youtube.com/watch?v=EXFngtcADc8
 
     static dcr_t dc[1+3+3];
     do_once
@@ -747,11 +721,26 @@ void input() {
             k(U)k(V)k(W)k(X)k(Y)k(Z)
         #define K(x) if(keys[ 0[#x] ]) ZXKey(ZX_##x);
 
-#if 0
-        int ZX_USE_PC_KEYBOARD = 1; //ZX_KLMODE;
-        bool basic = PC(cpu) < 0x4000; // && (GET_MAPPED_ROMBANK() == GET_BASIC_ROMBANK() || GET_MAPPED_ROMBANK() == GET_EDITOR_ROMBANK());
-        if( basic && ZX_USE_PC_KEYBOARD ) {
+#if 1 // ZX_USE_HOST_KEYBOARD
+        if( PC(cpu) < 0x4000 && is_basic_mode() ) {
             int chr = key_char(0);
+            // special keys
+            if( !chr ) {
+                //if(keys[TK_ESCAPE])    ZXKey(ZX_SHIFT), ZXKey(ZX_1);
+                if(keys[TK_BACKSPACE])   ZXKey(ZX_SHIFT), ZXKey(ZX_0);
+                if(keys[TK_CAPSLOCK])    ZXKey(ZX_SHIFT), ZXKey(ZX_2);
+                if(keys[TK_SHIFT])       ZXKey(ZX_SHIFT);
+                if(keys[TK_CONTROL] && !keys[TK_ALT] ) { // CTRL only, no ALTGR
+                    // emulate old zx keyboard with ctrl key
+                    // ctrl-1 would edit line, ctrl-2 caps, ctrl-5678 cursor, ctrl-0 backspace, etc
+                    // ctrl-p would send quotes, ctrl-j (-), ctrl-k (+), ctrl-l (=), etc.
+                    int number = 0;
+                    for( int i = 0; i <= 9; ++i )
+                        if(keys['0'+i]) ZXKey(ZX_SHIFT), ZXKey(ZX_0+i), number = 1;
+                    if( !number ) { ZXKey(ZX_SYMB); KEYS(K); }
+                }
+            }
+            // regular chars
             if( chr ) for( const char *sym = "0123456789abcdefghijklmnopqrstuvwxyz \n", *peek = strchr(sym, chr); peek; peek = 0, chr = 0) {
                 ZXKey(ZX_0 + (peek - sym));
             }
@@ -765,22 +754,13 @@ void input() {
                 WRITE8(0x5C41, 1); // MODE, E cursor
                 ZXKey(ZX_SYMB), ZXKey(ZX_A + (peek - sym));
             }
-            // special keys
-            //if(keys[TK_ESCAPE])    ZXKey(ZX_SHIFT), ZXKey(ZX_1);
-            if(keys[TK_BACKSPACE]) ZXKey(ZX_SHIFT), ZXKey(ZX_0);
-            if(keys[TK_CAPSLOCK])  ZXKey(ZX_SHIFT), ZXKey(ZX_2);
-            if(keys[TK_CONTROL] && !keys[TK_ALT]) { // CTRL only, no ALTGR
-                int do_numbers = 1, do_letters = 1;
-                if( do_numbers ) for( int i = 0; i <= 9; ++i ) if(keys['0'+i]) ZXKey(ZX_SHIFT), ZXKey(ZX_0+i), do_letters = 0;
-                if( do_letters ) { ZXKey(ZX_SYMB); KEYS(K); }
-            }
         }
-        else 
+        else
 #endif
         {
             KEYS(K);
-            if(keys[TK_SPACE])      {ZXKey(ZX_SPACE); /*if(mic_on) mic_on = 0, tap_prev();*/ }
-            if(keys[TK_BACKSPACE])  {ZXKey(ZX_SHIFT); ZXKey(ZX_0);}
+            if(keys[TK_SPACE])       ZXKey(ZX_SPACE);
+            if(keys[TK_BACKSPACE])   ZXKey(ZX_SHIFT), ZXKey(ZX_0);
             if(keys[TK_RETURN])      ZXKey(ZX_ENTER);
             if(keys[TK_SHIFT])       ZXKey(ZX_SHIFT);
             if(keys[TK_CONTROL])     ZXKey(ZX_SYMB);
@@ -816,8 +796,6 @@ void input() {
 
 
 
-
-float fps;
 
 
 
@@ -1005,7 +983,8 @@ void draw_ui() {
 
             // load & play tune
             for( char *data = zxdb_download(ZXDB,zxdb_url(ZXDB, "ay"), &len); data; free(data), data = 0 ) {
-                loadbin(data, len, false, 0);
+                zxdb_unpack2(&data, &len);
+                loadbin(data, len, false);
             }
 
             if( scrlen == 6912 ) memcpy(VRAM, scrdata, scrlen);
@@ -1017,7 +996,8 @@ void draw_ui() {
         }
         if( zxdb_url(ZXDB, "poke") && ui_click("- Enable Cheats -", "Cheats\n") ) {
             for( char *data = zxdb_download(ZXDB,zxdb_url(ZXDB, "poke"), &len); data; free(data), data = 0 ) {
-                loadbin(data, len, false, 0);
+                zxdb_unpack2(&data, &len);
+                loadbin(data, len, false);
             }
         }
         if( zxdb_url(ZXDB, "map") && ui_click("- Toggle Game Map -", "Maps\n")) {
@@ -1032,16 +1012,8 @@ void draw_ui() {
         if( zxdb_url(ZXDB, "instructions") && ui_click("- Toggle Instructions -", "Help\n")) { // @todo: word wrap maybe. see Afterburner for a good test case
             for( char *data = zxdb_download(ZXDB,zxdb_url(ZXDB, "instructions"), &len); data; free(data), data = 0 ) {
 
-                // is it a zip? unzip & try to recurse... (see: IndianaJonesAndTheLastCrusade)
-                // @todo: also .rar, .gz @todo: move this over zxdb_download(). good idea?
-                if( len > 4 && !memcmp(data, "PK\3\4", 4) ) {
-                    for( FILE *fp = fopen(".Spectral/$$help.zip","wb"); fp; fclose(fp), fp = 0) {
-                        fwrite(data, len, 1, fp);
-                    }
-                    free(data); data = unzip(".Spectral/$$help.zip/*", &len);
-                    unlink(".Spectral/$$help.zip");
-                    if(!data) continue;
-                }
+                // unpack if needed (see: IndianaJonesAndTheLastCrusade)
+                zxdb_unpack2(&data, &len);
 
                 do_overlay ^= 1;
                 tigrClear(ui, !do_overlay ? tigrRGBA(0,0,0,0) : tigrRGBA(0,0,0,OVERLAY_ALPHA));
@@ -1099,7 +1071,7 @@ void draw_ui() {
 
         ui_at(ui,chr_x - 8,chr_y-11*2-2-1);
         ui_y++;
-        if( ui_press("- Frames per second -\n(hold to boost)", "\b%s\f%d", bat, (int)fps) ) cmdkey = 'MAX';
+        if( ui_click("- Frames per second -\nClick to toggle max speed", "\b%s\f%d", bat, (int)ZX_FPS) ) cmdkey = 'MAX';
         ui_y--;
 
         ui_x = chr_x + 3 * 8;
@@ -1183,7 +1155,7 @@ void draw_ui() {
         {
             ui_dialog_new("- Toggle Palette -");
             for( int i = 0; i < countof(ZXPaletteNames); ++i)
-            ui_dialog_option(1,va((ZX_PALETTE!=i)+"\005%s\n",ZXPaletteNames[i]),NULL,'PAL',va("%d",i));
+            ui_dialog_option(1,va((ZX_PALETTE!=i)+"\005%s\n",ZXPaletteNames[i]+1),NULL,'PAL',va("%d",i));
         }
 
         if( ui_click(rmb_held*19+"- Toggle AY core -\0- Toggle AY core -\n0:off, 1:fast, 2:accurate", /*𝄞*/"♬\f%d",ZX_AY) ) if(rmb_up) cmdkey = 'AY'; else
@@ -1197,7 +1169,7 @@ void draw_ui() {
         if( ui_click(rmb_held*21+"- Toggle Waveforms -\0- Toggle Waveforms -\n0:off, 1:on", "\f%d\n",ZX_WAVES) ) if(rmb_up) cmdkey = 'WAVE'; else
         {
             ui_dialog_new("- Toggle Waveforms -");
-            ui_dialog_option(1,(ZX_WAVES!=1)+"\5Visualize waveforms\n",NULL,'WAVE',"1");
+            ui_dialog_option(1,(ZX_WAVES!=1)+"\5Display waveforms\n",NULL,'WAVE',"1");
             ui_dialog_option(1,(ZX_WAVES!=0)+"\5Off\n",NULL,'WAVE',"0");
         }
 
@@ -1646,7 +1618,7 @@ int main() {
             if(!memcmp(embed + 0000, "Rar!",4))
             if(!memcmp(embed + 0x38, "Spectral.db",11))
                 continue;
-            loadbin(embed, embedlen, 1, 0);
+            loadbin(embed, embedlen, 1);
         }
     }
 
@@ -1660,7 +1632,7 @@ int main() {
         titlebar(ZX_TITLE);
         if( ZX_MEDIA ) {
             char *at = strrchr(ZX_MEDIA, '@'); if(at) *at = 0, seekpos = atoi(at+1);
-            if( !loadfile(ZX_MEDIA, 1, 0)) if( !zxdb_load(ZX_MEDIA, 0) ) {} // @fixme: emit warning
+            if( !load(ZX_MEDIA, ZX)) {} // @fixme: emit warning
         }
 
         // import state; do not clear medias we just loaded 3 lines ago
@@ -1683,10 +1655,26 @@ int main() {
             break;
         tigrUpdate(app);
 
+        // force pause when blurred
+        static int paused = 0; int running = tape_playing() || tigrFocused(app);
+        paused = (paused + 1) * !running;
+        if( paused ) {
+            if( paused > 1 ) {
+                ifdef(win32, Sleep(500), sys_sleep(500));
+            } else {
+                for( TPixel *ix = app->pix, *ixend = ix+_320*_240; ix < ixend; ++ix ) {
+                    ix->rgba = ( ix->rgba & 0x00f8f8f8 ) >> 3 | 0xff000000;
+                }
+                ui_monospaced = 1;
+                ui_print(app, (_320-12*8)/2, _240/2, ui_colors, "- P A U S E -" );
+            }
+            continue;
+        }
+
 #if 1
         // 4 parameters in our shader. we use parameters[0] to track time
         if( ZX_CRT )
-        tigrSetPostFX(app, (ticks / (69888 * 50.)), -mouse_offsets()[0],-mouse_offsets()[1],0);
+        tigrSetPostFX(app, (ticks / (69888 * 50.)), -mouse_offsets()[0],-mouse_offsets()[1], ZX_PALETTE == 6 ? 0.85 : (ZX_PALETTE > 6) * 0.15 );
         else
         tigrSetPostFX(app, 0, 0,0,1); // app->w,app->h,1);
 
@@ -1726,7 +1714,7 @@ int main() {
         int disk_likely_loading = disk_hz > 0;
         int tape_likely_loading = (PC(cpu) & 0xFF00) == 0x0500 ? 1 : tape_hz > 40;
 
-        int media_accelerated = ZX_FASTCPU ? 1
+        int media_accelerated = ZX_FASTCPU || key_held(TK_RSHIFT) ? 1
             : tape_inserted() && tape_peek() == 'o' ? 0 
             : ZX_FASTTAPE && tape_likely_loading && tape_playing() ? 1
             : ZX_FASTTAPE && disk_likely_loading ? 1
@@ -1834,50 +1822,16 @@ if( do_runahead == 0 ) {
             bool insert_next_disk_or_tape = false;
             if( ZX_TITLE ) { // @fixme: ZXDB might use ZX_MEDIA and search for sequential #X diffs instead
                 if( 0 != strcmp(game, ZX_TITLE) ) {
-                    const char *a1 = game, *a2 = ZX_TITLE;
-
-                    // basenames and their lengths
-                    const char *b1 = strrchr(a1, '/') ? strrchr(a1, '/')+1 : a1; int l1 = strlen(b1);
-                    const char *b2 = strrchr(a2, '/') ? strrchr(a2, '/')+1 : a2; int l2 = strlen(b2);
-                    // printf("%s(%d) %s(%d)\n", b1,l1, b2,l2);
-
-                    // multi-load tapes and disks are well named (eg, Mutants - Side 1.tzx). 
-                    // following oneliner hack prevents some small filenames to be catched in the 
-                    // diff trap below. eg, 1942.tzx / 1943.tzx; they do not belong to each other
-                    // albeit their ascii diff is exactly `1`.
-                    if( l1 > 8 )
-
-                    if( l1 == l2 ) {
-                        int diff = 0;
-                        for( int i = 0; i < l1; ++i ) {
-                            diff += b1[i] - b2[i];
-                        }
-                        insert_next_disk_or_tape = diff == 1;
-                    }
+                    insert_next_disk_or_tape = are_sequential_urls(game, ZX_TITLE);
                 }
             }
 
-            int model = key_pressed( TK_SHIFT) ? 128 : 48;
-            /**/ if( strstr (game+1, "128") )       model = 128;
-            else if( strstri(game+1, "pentagon") )  model = 129;
-            else if( strstri(game+1, ".dsk") )      model = 300;
-            else if( strstri(game+1, ".$b") )       model = 129;
-            else if( strstri(game+1, ".$c") )       model = 129;
-            else if( strstri(game+1, ".scl") )      model = 129;
-            else if( strstri(game+1, ".img") )      model = 129;
-            else if( strstri(game+1, ".mgt") )      model = 129;
-            else if( strstri(game+1, ".fdi") )      model = 129;
-            else if( strstri(game+1, ".trd") )      model = 129;
-            else if( strstr (game+1, "ZX7") )       model = 128;
+            int model = 0; // game[0] == '#' ? 0 : 48; // auto-detect if zxdb. local files probably a 48k game
+            if( key_pressed( TK_SHIFT) ) // alt model
+                model = ZX < 128 ? 128 : 48;
 
-            int must_clear = insert_next_disk_or_tape || strstri(game, ".pok") ? 0 : 1;
-            int must_turbo = key_pressed(TK_CONTROL) || ZX_TURBOROM ? 1 : 0;
-            int use_preloader = must_clear ? 1 : 0;
-
-            if( must_clear ) boot(model, 0);
-            if( must_turbo ) rom_patch_turbo();
-
-            if( loadfile(game,use_preloader,model) ) {
+            load_should_clear = insert_next_disk_or_tape || strstri(game, ".pok") ? 0 : 1;
+            if( load(game,model) ) {
                 titlebar(game);
 
                 if( ZX_MEDIA != game )
@@ -1891,7 +1845,7 @@ if( do_runahead == 0 ) {
         }
 
         // measure time & frame lock (50.01 fps)
-        int max_speed = media_accelerated || !ZX_FPSMUL || ZX_FASTCPU; // max speed if media_accelerated or no fps lock
+        int max_speed = media_accelerated || !ZX_FPSMUL || ZX_FASTCPU || key_held(TK_RSHIFT); // max speed if media_accelerated or no fps lock
         if( max_speed ) {
             dt = tigrTime();
             // constant time flashing when loading accelerated tapes (every 16 frames @ 50hz)
@@ -1907,17 +1861,20 @@ if( do_runahead == 0 ) {
             dt = tigrTime();
             if( dt < (1000/50.f) ) sys_sleep( (1000/50) - dt );
 #elif 0 // try precise sleep (requires SDL_DelayPrecise backend)
-            static uint64_t prev_dt = 0;
+            static uint64_t prev_dt = 0; do_once prev_dt = time_ns();
             uint64_t now_dt = time_ns();
             int64_t diff = now_dt - prev_dt;
             prev_dt = now_dt;
 
             float target = (ZX_FPSMUL/100.0) * (ZX < 128 ? 50.08:50.01);
-            int64_t frame_in_ns = ((1000/target)*SDL_NS_PER_MS);
-            if( diff < frame_in_ns ) sys_sleep_precisens( frame_in_ns - dt );
+            double target_ms = 1000 / (target+!target);
+            double target_ns = target_ms * 1000000;
+            if( diff < target_ns ) SDL_DelayPrecise( target_ns - diff ); // tigrDelayPrecise()
 
-            dt = tigrTime();
-#else // accurate (beware of CPU usage)
+            dt = diff / 1e9; // dt = tigrTime();
+#elif 1 // accurate (beware of CPU usage)
+            ifdef(win32, timeBeginPeriod(1));
+
             float target = (ZX_FPSMUL/100.0) * (ZX < 128 ? 50.08:50.01);
 
             // be nice to os
@@ -1928,6 +1885,8 @@ if( do_runahead == 0 ) {
                 sys_yield();
                 dt += tigrTime();
             }
+
+            ifdef(win32, timeEndPeriod(1));
 #endif
         }
 
@@ -1943,18 +1902,35 @@ if( do_runahead == 0 ) {
         // calc fps
         static int frames = 0; ++frames;
         static double time_now = 0; time_now += dt;
-        if( time_now >= 1 ) { fps = frames / time_now; time_now = frames = 0; }
+        if( time_now >= 1 ) { ZX_FPS = frames / time_now; time_now = frames = 0; }
 
         // tape timer
         if(tape_playing()) timer += dt;
 
-        static char dev_status[128] = "";
+        static char dev_status[256] = "";
         if( DEV || ZX_DEBUG ) {
             char *ptr = dev_status;
             ptr += sprintf(ptr, "%dm%02ds ", (unsigned)(timer) / 60, (unsigned)(timer) % 60);
-            ptr += sprintf(ptr, "%5.2ffps%s %d mem%s%d%d%d%d ", fps, do_runahead ? "!":"", ZX, rom_patches ? "!":"", GET_MAPPED_ROMBANK(), (page128&8?7:5), 2, page128&7);
+            ptr += sprintf(ptr, "%5.2ffps%s %d mem%s%d%d%d%d ", ZX_FPS, do_runahead ? "!":"", ZX, rom_patches ? "!":"", GET_MAPPED_ROMBANK(), (page128&8?7:5), 2, page128&7);
             ptr += sprintf(ptr, "%02X%c%02X %04X ", page128, page128&32?'!':' ', page2a, PC(cpu));
             ptr += sprintf(ptr, "%c%c%d %4dHz %dHz ", "  +-"[tape_inserted()*2+tape_level()], toupper(tape_peek()), mic_on, tape_hz, disk_hz);
+
+#if 0
+            ptr += sprintf(ptr, "%s", voice_info(0));
+#else
+            ptr += sprintf(ptr, "\nsfx");
+            for( int i = 0; i < voices_max; ++i )
+            ptr += sprintf(ptr, "%d", (int)voice[i].count < 0 ? 9 : voice[i].count );
+#endif
+
+            // renders per second
+            static int rps_;
+            static char screen_[6912];
+            rps_ += !!memcmp(screen_, VRAM, 6912); memcpy(screen_, VRAM, 6912);
+            static float taken_;
+            if( (taken_ += dt) >= 1 ) taken_ -= (int)taken_, ZX_RPS = rps_, rps_ = 0;
+
+            ptr += sprintf(ptr, " rps:%d", (int)ZX_RPS);
         }
 
         // rec before/after UI,
@@ -1962,10 +1938,9 @@ if( do_runahead == 0 ) {
         int gui(const char *);
         gui(dev_status), rec(ZX_PRINTUI ? app : canvas);
 
-        #define LOAD(ZX,TURBO,file) if(file) do { \
+        #define LOAD(ZX,file) if(file) do { \
                 if( !load_shader( file ) ) { \
-                    boot(ZX, 0); if(TURBO || key_pressed(TK_CONTROL)) rom_patch_turbo(); \
-                    if( !loadfile(file,1,0) ) { \
+                    if( !load(file,ZX) ) { \
                         if( is_folder(file) ) cmdkey = 'SCAN', cmdarg = file; \
                         else alert(va("cannot open '%s' file\n", file)); \
                     } else titlebar(file), (free(ZX_MEDIA), ZX_MEDIA = strdup(file)); \
@@ -1977,9 +1952,9 @@ if( do_runahead == 0 ) {
         for( int i = 0; list[i]; ++i ) {
         	while( strchr("\r\n", list[i][strlen(list[i])-1]) ) list[i][strlen(list[i])-1] = '\0';
             #if TESTS
-            LOAD(48,1,list[i]);
+            LOAD(48,list[i]);
             #else
-            LOAD(ZX,ZX_TURBOROM,list[i]);
+            LOAD(00,list[i]);
             #endif
         }
 
@@ -1988,9 +1963,9 @@ if( do_runahead == 0 ) {
         for( int i = 1; i < __argc; ++i )
         if( __argv[i][0] != '-' ) {
             #if TESTS
-            LOAD(48,1,__argv[i]);
+            LOAD(48,list[i]);
             #else
-            LOAD(ZX,ZX_TURBOROM,__argv[i]);
+            LOAD(00,__argv[i]);
             #endif
         }
         else if( __argv[i][1] == 'v' ) cmdkey = 'HELP';
@@ -2001,14 +1976,13 @@ if( do_runahead == 0 ) {
         const char *cmdarg_ = cmdarg; cmdarg = 0;
 
         // parse commands
-        ZX_FASTCPU = 0;
         ZX_FULLSCREEN = !tigrWindowed(app); // update var in case user pressed ALT+ENTER, or in some other external way
         switch(cmdkey_) { default: 
             #if DEV
             if(cmdkey_) alert(va("command not found `%08x`", cmdkey_));
             #endif
             break; case 'GAME':  if( ZX_BROWSER == 1 ? numgames : 1 ) browser ^= 1, ui_dialog_new(NULL);
-            break; case 'MAX':   ZX_FASTCPU = 1; // fast-forward cpu (hold)
+            break; case 'MAX':   ZX_FASTCPU ^= 1; // toggle fast-forward cpu
 
             break; case 'PLAY':  tape_play(1); ZX_AUTOSTOP = 0; ZX_AUTOPLAY = 0; // tape_play(!tape_playing()); /*if(!tape_inserted()) browser ^= 1; else tape_play(!tape_playing());*/ // open browser if start_tape is requested but no tape has been ever inserted
             break; case 'PREV':  tape_prev();
@@ -2035,10 +2009,22 @@ if( do_runahead == 0 ) {
             break; case 'REC_': cmdkey = 'REC2', ZX_PRINTUI = 1 ^ (!!key_pressed( TK_SHIFT)); // resend recording cmd
             break; case 'REC2':
 
-            break; case 'TURB':  ZX_TURBOROM ^= 1; if(tape_inserted()) boot(ZX, 0|KEEP_MEDIA), reload(0); // toggle turborom and reload
-            break; case 'BOOT':  reset(0|KEEP_MEDIA), reload(0);
+            break; case 'TURB':  ZX_TURBOROM ^= 1; if(tape_inserted()) boot(ZX, 0|KEEP_MEDIA), reload(ZX, 1); // toggle turborom and reload
+            break; case 'BOOT':  reset(0|KEEP_MEDIA), reload(ZX, 1);
             break; case 'NMI':   if( pins & Z80_NMI ) pins &= ~Z80_NMI; else pins |= Z80_NMI; RZX_reset(); // @todo: verify
-            break; case 'WIPE':  reset(0); ZXDB = zxdb_free(ZXDB); if(ZX_MEDIA) (free(ZX_MEDIA), ZX_MEDIA = 0); if(ZX_TITLE) (free(ZX_TITLE), ZX_TITLE = 0); titlebar(""); // clear media    KEEP_MEDIA/*|QUICK_RESET*/);
+            break; case 'WIPE':
+
+            #if ZX_CUSTOM_ROMS
+                // restore original roms if they were replaced
+                rom48 = rom48_bak;
+                rom128 = rom128_bak;
+                romplus2 = romplus2_bak;
+                romplus341 = romplus341_bak;
+                rompentagon128 = rompentagon128_bak;
+            #endif
+
+                reset(0); ZXDB = zxdb_free(ZXDB); if(ZX_MEDIA) (free(ZX_MEDIA), ZX_MEDIA = 0); if(ZX_TITLE) (free(ZX_TITLE), ZX_TITLE = 0); titlebar(""); // clear media    KEEP_MEDIA/*|QUICK_RESET*/);
+            
             break; case 'POKE':  pok_apply(cmdarg_);
             break; case 'MODE': {
                 // cycle
@@ -2056,10 +2042,10 @@ if( do_runahead == 0 ) {
                 ZX = model & 0x1FE;
                 ZX_PENTAGON = model & 1;
 
-                boot(ZX, 0|KEEP_MEDIA), reload(ZX); // toggle model and reload last media
+                boot(ZX, 0|KEEP_MEDIA), reload(ZX, 1); // toggle model and reload last media
 
                 // hack: force model if something went wrong. @fixme: investigate why
-                if( model & 1 ) if(!ZX_PENTAGON) ZX_PENTAGON = 1, rom_restore();
+                if( ZX == 128 ) if( model & 1 ) if(!ZX_PENTAGON) ZX_PENTAGON = 1, rom_restore();
 
                 titlebar(ZX_TITLE); // refresh titlebar to reflect new model
             }
@@ -2067,7 +2053,7 @@ if( do_runahead == 0 ) {
             break; case 'AY':    { const int table[] = { 1,2,0,0 }; ZX_AY = table[ZX_AY]; if(cmdarg_) ZX_AY=atoi(cmdarg_); }
             break; case 'WAVE':  ZX_WAVES ^= 1;                                   if(cmdarg_) ZX_WAVES=atoi(cmdarg_);
             break; case 'LENS':  ZX_LENSLOK ^= 1;                                 if(cmdarg_) ZX_LENSLOK=atoi(cmdarg_);
-            break; case 'PAL':   ZX_PALETTE = (ZX_PALETTE+1)%countof(ZXPalettes); if(cmdarg_) ZX_PALETTE=atoi(cmdarg_);    palette_use(ZX_PALETTE, ZX_PALETTE == 0 || ZX_PALETTE == 4 ? 1 : 0);
+            break; case 'PAL':   ZX_PALETTE = (ZX_PALETTE+1)%countof(ZXPalettes); if(cmdarg_) ZX_PALETTE=atoi(cmdarg_);    palette_use(ZX_PALETTE, ZXPaletteNames[ZX_PALETTE][0] - '0');
             break; case 'FIRE':  ZX_AUTOFIRE = (ZX_AUTOFIRE+1)%4;                 if(cmdarg_) ZX_AUTOFIRE=atoi(cmdarg_);
             break; case 'GUNS':  ZX_GUNSTICK ^= 1;                                if(cmdarg_) ZX_GUNSTICK=atoi(cmdarg_);   if(ZX_GUNSTICK) ZX_MOUSE = 0, ZX_JOYSTICK = 0; // cycle guns
             break; case 'MICE':  ZX_MOUSE ^= 1;                                   if(cmdarg_) ZX_MOUSE=atoi(cmdarg_);      if(ZX_MOUSE) ZX_GUNSTICK = 0;                  // cycle kempston mouse(s)
@@ -2086,7 +2072,7 @@ if( do_runahead == 0 ) {
 #if 0
                                     int do_reset = tape_playing() && q.debug && !strchr("uol", q.debug);
                                     if( do_reset ) {
-                                        reset(KEEP_MEDIA), loadfile(ZX_MEDIA,1,0);
+                                        load(ZX_MEDIA,ZX);
                                     }
 #endif
             break; case 'CPU':   { const float table[] = { [50]=60,[60]=100,[100]=120,[120]=150,[150]=200,[200]=400,[400]=50 };
@@ -2118,7 +2104,7 @@ if( do_runahead == 0 ) {
 
             break; case 'LIST': { // cmdarg in "#ID" format. @todo: add LIST redefineable cmd
                 int id = atoi(cmdarg_+1);
-                zxdb z = zxdb_search(cmdarg_);
+                zxdb z = zxdb_search(cmdarg_, 0);
 
                 int count = 0;
                 char *list[256] = {0};
@@ -2219,21 +2205,31 @@ if( do_runahead == 0 ) {
             }
 
             break; case 'ZXDB': {
-                eject();
-                if( zxdb_load(cmdarg_, 0) ) {
+                // @fixme: make a char *zxdb_v2_url(id); util func instead
+                if( ZX == 300 ) {
+                    char *prev = va("%s", ZX_MEDIA); if(strchr(prev,'@')) *strchr(prev,'@') = 0;
+                    int insert_next_disk_or_tape = are_sequential_urls(zxdb_url2(prev), zxdb_url2(cmdarg_));
+
+                    load_should_clear = insert_next_disk_or_tape ? 0 : 1;
+                }
+
+                // eject();
+                if( load(cmdarg_, 0) ) {
                 	if( ZX_MEDIA != cmdarg_ )
                     (free(ZX_MEDIA), ZX_MEDIA = strdup(cmdarg_));
                     // update titlebar
                     if( ZXDB.ids[0] )
                         titlebar( ZXDB.ids[2] );
-                    // small addendum for tape files that require custom roms
+                    // small addendum for tape files that require a separate rom download
                     /**/ if( !strcmp(cmdarg_,"#4424") ) cmdarg_ = "#4424#10"; // shadow of the unicorn
                     else cmdarg_ = 0;
                     //
                     if( cmdarg_ ) {
-                        int len; char *bank = zxdb_download2_unc(cmdarg_, &len);
+                        int len; char *bank = zxdb_download2(cmdarg_, &len);
+                        zxdb_unpack2(&bank, &len);
                         if( bank && len && len < 65536 ) memcpy(rom, bank, len);
                         if( bank ) free(bank);
+                        ZX_KLMODE = 0, ZX_TURBOROM = 0; // avoid further patches
                         z80_reset(&cpu);
                     }
                 } else {
@@ -2441,12 +2437,14 @@ if( do_runahead == 0 ) {
                             play_stream('mp3', NULL,0, 0); // stop voice
                             play_stream('mp3', data16, length16 / 2, -1);
 
+#if 0
                             // emit a warning if not played in ideal conditions
-                            if( tape_playing() ? ZX_FASTTAPE : ZX_FASTCPU ) {
+                            if( tape_feeding() && ZX_AY > 0 ) {
                                 ui_dialog_new("- Warning -");
-                                ui_dialog_option(0,"Not played in ideal conditions. Consider stopping\nthe tape and using normal cpu speed for best\nexperience.\n",NULL,0,NULL);
+                                ui_dialog_option(0,"Consider playing the audio track\nwhile the tape is stopped.\n",NULL,0,NULL);
                                 ui_dialog_ok();
                             }
+#endif
                         }
                     }
                 }
@@ -2460,6 +2458,7 @@ if( do_runahead == 0 ) {
                 for( int len = 0; len >= 0; len = -1)
                 for( char *url = zxdb_url(ZXDB,"mp3"); url; url = 0)
                 for( char *data = zxdb_download(ZXDB, url, &len); data; free(data), data = 0 ) {
+                    // zxdb_unpack2(&data, &len);
                     if( len > 2 && data[0] == 'P' && data[1] == 'K' ) {
                         writefile(".Spectral/$$mp3.zip", data, len);
 

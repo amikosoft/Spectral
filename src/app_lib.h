@@ -106,7 +106,7 @@ int zxdb_compare_by_name(const void *arg1, const void *arg2) { // @fixme: roman
 
 char *zxdb_screen(const char *id, int *len) {
     if( id && id[0] && strcmp(id, "0") && strcmp(id, "#") ) {
-        ZXDB2 = zxdb_search( id );
+        ZXDB2 = zxdb_search( id, 0 );
 
         if( ZXDB2.ids[0] ) {
             static char *data = 0;
@@ -119,115 +119,94 @@ char *zxdb_screen(const char *id, int *len) {
     return NULL;
 }
 
-// newer v2 function to download games and specific releases. also unzips.
-// supports both #4424 and #4424#10 formats
-char *zxdb_download2_unc(const char *id_, int *len) { // must free()
+
+// newer v2 function to grab a zxdb handle
+zxdb* zxdb_handle2(const char *id_, const char **hint) { // do not zxdb_free()
     if( id_ && id_[0] && strcmp(id_, "0") && strcmp(id_, "#") ) {
 
         char *id = va("%s", id_);
-        const char *hint = "play";
+        if(hint) *hint = "play";
 
         for( int gid, seq; sscanf(id, "#%d#%d", &gid, &seq ) == 2; ) {
-            hint = strrchr(id,'#')+1;
+            if(hint) *hint = strrchr(id,'#')+1;
             *strrchr(id,'#') = '\0';
             break;
         }
 
-        char *data = NULL;
+        static zxdb slots[16] = {0}; static int count = 0; count = (count + 1) % 16;
+        if( slots[count].tok ) zxdb_free(slots[count]);
+        slots[count] = zxdb_search(id, 0);
 
-        zxdb z = zxdb_search( id );
-        if( z.ids[0] ) {
-            char *url = zxdb_url(z, hint);
-            data = zxdb_download(z,url,len);
-            if( data && strendi(url, ".zip") && !memcmp(data, "PK", 2) ) {
-                // this temp file is a hack for now. @fixme: move the zip/rar/fdi loaders into loadbin()
-                for( FILE *fp = fopen(".Spectral/$$download2.zip", "wb"); fp; fwrite(data, *len, 1, fp), fclose(fp), fp = 0) {
-
-                }
-                char *data2 = unzip(".Spectral/$$download2.zip/*", len);
-                unlink(".Spectral/$$download2.zip");
-                free(data);
-                data = data2;
-            }
-        }
-        zxdb_free(z);
-
-        return data;
+        return &slots[count];
     }
     return NULL;
 }
 
-// @fixme: next function should use the previous zxdb_download2() function above
-// ZX_MODEL: <0: do not reset, ==0: infer model, >0 : specific model
-bool zxdb_load(const char *id_, int ZX_MODEL) {
-    if( id_ && id_[0] && strcmp(id_, "0") && strcmp(id_, "#") ) {
-
-        char *id = va("%s", id_);
-        const char *hint = "play";
-
-#if 0
-        // convert #game-id#release-seq format into {game,seq} pair
-        for( int gid, seq; sscanf(id, "#%d#%d", &gid, &seq ) == 2; ) {
-            static char clean[16], hints[16];
-            snprintf(clean, 15, "#%d", gid); id = clean;
-            snprintf(hints, 15, "#%d", seq); hint = hints+1;
-            break;
-        }
-#else
-        for( int gid, seq; sscanf(id, "#%d#%d", &gid, &seq ) == 2; ) {
-            hint = strrchr(id,'#')+1;
-            *strrchr(id,'#') = '\0';
-            break;
-        }
-#endif
-
-
-        ZXDB2 = zxdb_search( id );
-
-        if( ZXDB2.ids[0] ) {
-            int len;
-
-            static char *data = 0;
-            if( data ) free(data), data = 0;
-            if(!data ) data = zxdb_download(ZXDB2,zxdb_url(ZXDB2, hint), &len);
-            if( data && len ) {
-
-                /**/ if( ZX_MODEL >  0 ) boot(ZX = ZX_MODEL, ~0u);  //>0
-                else if( ZX_MODEL == 0 ) {
-                    ZX_PENTAGON = 0;
-                    char *model = strchr(ZXDB2.ids[5], ',')+1;
-                    /**/ if( strstr(model, "Pentagon") ) boot(ZX = 128, ~0u), ZX_PENTAGON = 1, rom_restore();
-                    else if( strstr(model, "+3") )       boot(ZX = 300, ~0u);
-                    else if( strstr(model, "+2A") )      boot(ZX = 210, ~0u);
-                    else if( strstr(model, "+2B") )      boot(ZX = 210, ~0u);
-                    else if( strstr(model, "+2") )       boot(ZX = 200, ~0u);
-                    else if( strstr(model, "USR0") )     boot(ZX = 128, ~0u); // @fixme
-                    else if( strstr(model, "128") )      boot(ZX = 128, ~0u);
-                    else if( strstr(model, "48") )       boot(ZX = 48 /*+ 80 * (atoi(ZXDB2.ids[1]) >= 1987)*/, ~0u);
-                    else                                 boot(ZX = 16, ~0u);
-                }
-
-        #if 0
-                loadbin(data, len, true);
-        #else
-                // this temp file is a hack for now. @fixme: move the zip/rar/fdi loaders into loadbin()
-                for( FILE *fp = fopen(".Spectral/$$load", "wb"); fp; fwrite(data, len, 1, fp), fclose(fp), fp = 0) {
-                }
-                loadfile(".Spectral/$$load", 1, 0);
-                unlink(".Spectral/$$load");
-        #endif
-
-                // @fixme: verify that previous step went right
-                ZXDB = ZXDB2;
-                return true;
-            }
-        }
+// newer v2 function to retrieve game urls and specific releases
+// supports both #4424 and #4424#10 formats
+// @fixme: implement #id#play#1 or #id#mp3#2 in addition to #id#N
+const char *zxdb_url2(const char *id_) {
+    const char *hint;
+    zxdb* handle = zxdb_handle2(id_, &hint);
+    if( handle ) {
+        char *url = zxdb_url(*handle, hint);
+        if(url) url = va("%s", url);
+        return url;
     }
-    return false;
+    return NULL;
 }
 
-bool zxdb_reload(int ZX_MODEL) {
-    return ZXDB.ids[0] ? zxdb_load(va("#%s", ZXDB.ids[0]), ZX_MODEL) : false;
+bool zxdb_unpack2(char **ptr, int *len) {
+    repeat:; // avoid recursion
+
+    // is it zip,rar or gzip? uncompress & try to recurse...
+    if( !memcmp(*ptr, "\x1f\x8b\x08", 3) ) {
+        unsigned unclen;
+        char *unc = gunzip(*ptr, *len, &unclen);
+        if( unc ) {
+            free(*ptr);
+            *ptr = unc;
+            *len = unclen;
+            goto repeat;
+        }
+        return 0;
+    }
+    if( !memcmp(*ptr, "Rar!", 4) ) {
+        int unclen;
+        char *ptr2 = unrar_mem(*ptr, *len, &unclen);
+        if( ptr2 ) {
+            free(*ptr);
+            *ptr = ptr2;
+            *len = unclen;
+            goto repeat;
+        }
+        return 0;
+    }
+    if( !memcmp(*ptr, "PK\3\4", 4) ) { // @fixme: implement zip_openmem() in 3rd_zip.h and remove this local file
+        for( FILE *fp = fopen(".Spectral/$$download2.zip", "wb"); fp; fwrite(*ptr, *len, 1, fp), fclose(fp), fp = 0) 
+        {}
+        char *ptr2 = unzip(".Spectral/$$download2.zip/*", len);
+        unlink(".Spectral/$$download2.zip");
+        if( ptr2 ) {
+            free(*ptr);
+            *ptr = ptr2;
+            goto repeat;
+        }
+        return 0;
+    }
+    return 1;
+}
+
+// newer v2 function to download games and specific releases. also unzips.
+// supports both #4424 and #4424#10 formats. outputs url as well if needed.
+char *zxdb_download2(const char *id_, int *len) { // must free()
+    char *data = 0;
+    for( const char *url = zxdb_url2(id_); url; url = 0 ) {
+        for( zxdb *handle = zxdb_handle2( id_, 0 ); handle; handle = 0 ) {
+            data = zxdb_download(*handle,url,len);
+        }
+    }
+    return data;
 }
 
 
@@ -402,7 +381,7 @@ int worker_push(const zxdb z, const char *url, int ms) {
 const
 char *zxdb_screen_async(const char *id, int *len, int factor) {
     if( id && id[0] && strcmp(id, "0") && strcmp(id, "#") ) {
-        ZXDB2 = zxdb_search( id );
+        ZXDB2 = zxdb_search( id, 0 );
 
         if( ZXDB2.ids[0] ) {
             int zxdb_id = atoi(ZXDB2.ids[0]);
@@ -967,7 +946,7 @@ char* game_browser_v2() {
                         const char *search = prompt("Game search", "Wildcards allowed"/*"Either \"#zxdb-id\", \"*text*search*\", or \"/file.ext\" path"*/, "");
                         // expand search to include more cases. eg, alien8 > ALIEN*8*, jack ii>JACK*II*, jetSetWilly>JET*SET*WILLY*
                         // @todo: consider including this expansion into search_query_v1()
-                        if(search && search[0]) search = strchr(search, '*') ? search : zxdb_filename2title(va("%s*",search));
+                        if(search && search[0]) search = strchr(search, '*') ? search : zxdb_filename2title(replace(va("*%s*",search), "-", "*"),0);
                         search_query_v1( search );
                     }
                     else {
@@ -1020,10 +999,10 @@ char* game_browser_v2() {
         }
         else
         if( *tab == '\x18' ) {
-            const char *search = prompt("Game search", ""/*"Either \"#zxdb-id\", \"*text*search*\", or \"/file.ext\" path"*/, "");
+            const char *search = prompt("Game search", "Wildcards allowed"/*"Either \"#zxdb-id\", \"*text*search*\", or \"/file.ext\" path"*/, "");
             // expand search to include more cases. eg, alien8 > ALIEN*8*, jack ii>JACK*II*, jetSetWilly>JET*SET*WILLY*
             // @todo: consider including this expansion into search_query_v1()
-            if( search && search[0] ) search = strchr(search, '*') ? search : zxdb_filename2title(va("%s*",search));
+            if(search && search[0]) search = strchr(search, '*') ? search : zxdb_filename2title(replace(va("*%s*",search), "-", "*"),0);
 
             if( search && search[0] ) {
                 search_query_v1( search );
@@ -1333,11 +1312,11 @@ char* game_browser_v2() {
 
                         // prepare to blit larger preview
                         if( thumbnails == 12 ) {
-                            //larger_preview = (const rgba *)zxdb_screen_async(va("#%.*s", zx_id_len, zx_id), NULL, larger_factor = 1);
+                            larger_preview = (const rgba *)zxdb_screen_async(va("#%.*s", zx_id_len, zx_id), NULL, larger_factor = 1);
                         }
                         else
                         if( thumbnails == 6 ) {
-                            //larger_preview = (const rgba *)zxdb_screen_async(va("#%.*s", zx_id_len, zx_id), NULL, larger_factor = 1);
+                            larger_preview = (const rgba *)zxdb_screen_async(va("#%.*s", zx_id_len, zx_id), NULL, larger_factor = 1);
                         }
                     }
                 }

@@ -1,5 +1,21 @@
 #include "zx_embed.h"
 
+#define ZX_CUSTOM_ROMS 1
+
+#if ZX_CUSTOM_ROMS
+// replaceable roms, and backups
+const byte *rom48_ = rom48, *rom48_bak = rom48;
+const byte *rom128_ = rom128, *rom128_bak = rom128;
+const byte *romplus2_ = romplus2, *romplus2_bak = romplus2;
+const byte *romplus341_ = romplus341, *romplus341_bak = romplus341;
+const byte *rompentagon128_ = rompentagon128, *rompentagon128_bak = rompentagon128;
+#define rom48 rom48_
+#define rom128 rom128_
+#define romplus2 romplus2_
+#define romplus341 romplus341_
+#define rompentagon128 rompentagon128_
+#endif
+
 #define ROMHACK_TURBO 2.6 // x2 ok; x4,x6,x8 modes not working anymore :(
 #define IF_TURBOROM_FASTER_EDGES(...)               __VA_ARGS__ // can be enabled ugh
 #define IF_TURBOROM_FASTER_PILOTS_AND_PAUSES(...)   __VA_ARGS__ // can be enabled
@@ -130,8 +146,8 @@ void rom_patch_turbo() {
 IF_TURBOROM_FASTER_PILOTS_AND_PAUSES(
     // ROMHACK $571 x6 faster pilot pulse
     memcpy(rombank+0x571, "\x21\x01\x00", 3); // LD HL,$0415 -> LD HL,$0105      The length of this waiting period will be almost one second in duration. -> /=4
-    memcpy(rombank+0x580, "\x06\x4E",     2); // LD B,$9C                        The timing constant -> /=4
-    memcpy(rombank+0x587, "\x3E\x63",     2); // LD A,$C6                        However the edges must have been found within about 3,000 T states of each other. -> /=4
+    memcpy(rombank+0x580, "\x06\x4E",     2); // LD B,$9C                        The timing constant -> /=2
+    memcpy(rombank+0x587, "\x3E\x63",     2); // LD A,$C6                        However the edges must have been found within about 3,000 T states of each other. -> /=2
 );
 IF_TURBOROM_FASTER_EDGES(
     // ROMHACK $5e7 x16 faster edges (sync) (358T->0T)

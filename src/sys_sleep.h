@@ -7,12 +7,17 @@
 uint64_t time_ns();
 
 #ifdef _WIN32
+void timerSleep(double);
 #define sys_sleep(ms) timerSleep((ms)/1000.0) // SleepEx((ms), FALSE)
 #define sys_yield()   SwitchToThread()
 #else
 #define sys_sleep(ms) usleep((ms)*1000)
 #define sys_yield()   usleep(0)
 #endif
+
+void sys_sleep_ns(uint64_t ns) {
+    sys_sleep((ns) / 1000000);
+}
 
 
 // impl
@@ -161,7 +166,67 @@ uint64_t time_ns() {
 #define Uint64              uint64_t
 #define SDL_GetTicksNS()    time_ns()
 #define SDL_NS_PER_MS       1000000
+#define SDL_NS_TO_MS(NS)    ((NS) / SDL_NS_PER_MS)
+
+#ifndef _WIN32
 #define SDL_SYS_DelayNS(ns) sys_sleep(((ns) / SDL_NS_PER_MS))
+#else
+
+/* CREATE_WAITABLE_TIMER_HIGH_RESOLUTION flag was added in Windows 10 version 1803. */
+#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x2
+#endif
+
+
+void SDL_SYS_DelayNS(Uint64 ns)
+{
+#if 0
+    typedef HANDLE (WINAPI *CreateWaitableTimerExW_t)(LPSECURITY_ATTRIBUTES lpTimerAttributes, LPCWSTR lpTimerName, DWORD dwFlags, DWORD dwDesiredAccess);
+    static CreateWaitableTimerExW_t pCreateWaitableTimerExW = 0;
+
+    typedef BOOL (WINAPI *SetWaitableTimerEx_t)(HANDLE hTimer, const LARGE_INTEGER *lpDueTime, LONG lPeriod, PTIMERAPCROUTINE pfnCompletionRoutine, LPVOID lpArgToCompletionRoutine, PREASON_CONTEXT WakeContext, ULONG TolerableDelay);
+    static SetWaitableTimerEx_t pSetWaitableTimerEx = 0;
+
+    if (!pCreateWaitableTimerExW || !pSetWaitableTimerEx) {
+        HMODULE module = GetModuleHandleA("kernel32.dll");
+        if (module) {
+            pCreateWaitableTimerExW = (CreateWaitableTimerExW_t)GetProcAddress(module, "CreateWaitableTimerExW");
+            pSetWaitableTimerEx = (SetWaitableTimerEx_t)GetProcAddress(module, "SetWaitableTimerEx");
+        }
+    }
+#else
+    #define pCreateWaitableTimerExW CreateWaitableTimerExW
+    #define pSetWaitableTimerEx     SetWaitableTimerEx
+#endif
+
+    static __declspec(thread) HANDLE timer = 0;
+    if (!timer) timer = pCreateWaitableTimerExW(NULL, NULL, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+    if (timer) {
+        LARGE_INTEGER due_time;
+        due_time.QuadPart = -((LONGLONG)ns / 100);
+        if (pSetWaitableTimerEx(timer, &due_time, 0, NULL, NULL, NULL, 0)) {
+            WaitForSingleObject(timer, INFINITE);
+        }
+        return;
+    }
+
+    const Uint64 max_delay = 0xffffffffLL * SDL_NS_PER_MS;
+    if (ns > max_delay) {
+        ns = max_delay;
+    }
+    const DWORD delay = (DWORD)SDL_NS_TO_MS(ns);
+
+    static __declspec(thread) HANDLE event = 0;
+    if (!event) event = CreateEvent(NULL, FALSE, FALSE, NULL);
+    if (event) {
+        WaitForSingleObjectEx(event, delay, FALSE);
+        return;
+    }
+
+    Sleep(delay);
+}
+#endif
+
 
 #if (defined(__GNUC__) || defined(__clang__)) && (defined(__i386__) || defined(__x86_64__))
     #define SDL_CPUPauseInstruction() __asm__ __volatile__("pause\n")  /* Some assemblers can't do REP NOP, so go with PAUSE. */
@@ -254,7 +319,6 @@ void SDL_DelayPrecise(Uint64 ns)
     }
 }
 
-#define sys_sleep_precisens SDL_DelayPrecise
 
 
 

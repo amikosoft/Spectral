@@ -1,14 +1,17 @@
-#define luma(r,g,b) ((r)*0.299+(g)*0.587+(b)*0.114)
-#define gray(r,g,b) rgb((byte)luma(r,g,b),(byte)luma(r,g,b),(byte)luma(r,g,b))
+#define luma(r,g,b) ((byte)((r)*0.299+(g)*0.587+(b)*0.114))
+#define gray(r,g,b) rgb(luma(r,g,b),luma(r,g,b),luma(r,g,b))
 
-const char *ZXPaletteNames[] = {
-    "Spectral",
-    "Atkinson",
-    "Vivid",
-    "Ala-Konni",
-    "Goblin22",
-    "Gray",
-    "Negative",
+const char *ZXPaletteNames[] = { // first char specifies whether bright mode is applied or not
+    "1Spectral",
+    "0Atkinson",
+    "0Vivid",
+    "0Ala-Konni",
+    "0Polyducks",
+    "0Fantasy",
+    "0Amber",
+    "0PCW",
+    "0Gray",
+    "0Negative",
 };
 
 rgba ZXPalettes[][64] = {
@@ -97,25 +100,73 @@ rgba ZXPalettes[][64] = {
     rgb(0x3f*4,0x3b*4,0x00*4),
     rgb(0x3f*4,0x3b*4,0x37*4),
     },
-    // [4] mrmo's goblin22 adapted. just for fun
     {
-    rgb(84/7,77/7,84/7), // made it x7 darker
-    rgb(37,47,64),
-    rgb(99,37,14),
-    rgb(99,42,123),
-    rgb(78,131,87),
-    rgb(71,143,202),
-    rgb(216,121+121/2,69), // original: 216,121,69
-    rgb(160,154,146),
+        //Polyducks
+        //A true-to-hardware palette. Please note that the luminesence of the ZX Spectrum is dictated by the voltage output of the hardware (85% voltage for non-bright, 100% for bright) - so instead of using E/F values as dictated in the wikipedia article in the hex for non-bright/bright, the colours are instead D8/FF (D8 being 85% of FF). For example, non-bright red is given as EE0000 in the article - instead it has been portrayed here as D80000 to give as close to hardware output as possible on modern screens.
+        rgb(0x00,0x00,0x00),
+        rgb(0x00,0x00,0xd8),
+        rgb(0xd8,0x00,0x00),
+        rgb(0xd8,0x00,0xd8),
+        rgb(0x00,0xd8,0x00),
+        rgb(0x00,0xd8,0xd8),
+        rgb(0xd8,0xd8,0x00),
+        rgb(0xd8,0xd8,0xd8),
 
-    rgb(84/7,77/7,84/7), // made it x7 darker
-    rgb(47,88,141),
-    rgb(158,50,39),
-    rgb(194,71,184),
-    rgb(137,170,85),
-    rgb(100,213,223),
-    rgb(244,220,109),
-    rgb(245,238,228)
+        rgb(0x00,0x00,0x00),
+        rgb(0x00,0x00,0xff),
+        rgb(0xff,0x00,0x00),
+        rgb(0xff,0x00,0xff),
+        rgb(0x00,0xff,0x00),
+        rgb(0x00,0xff,0xff),
+        rgb(0xff,0xff,0x00),
+        rgb(0xff,0xff,0xff),
+    },
+    {
+        // [4] fantasy
+        rgb(0x04,0x0c,0x18),rgb(0x00,0x00,0xc0),rgb(0xc0,0x00,0x00),rgb(0x9d,0x00,0xd9),
+        rgb(0x00,0xc0,0x00),rgb(0x00,0xc0,0xc0),rgb(0xc8,0xc8,0x00),rgb(0xc0,0xc0,0xc0),
+        rgb(0x04,0x0c,0x18),rgb(0x00,0x40,0xff),rgb(0xea,0x06,0x40),rgb(0xff,0x40,0xff),
+        rgb(0x40,0xff,0x00),rgb(0x04,0xff,0xa2),rgb(0xff,0xd8,0x00),rgb(0xff,0xff,0xff),
+    },
+    // [6] amber-ish. take pc emulators > b/w version > orange. limited to 8 lumas for better vis
+    {
+        rgb(luma(0x00,0x20,0x00),luma(0x00,0x20,0x00)*44/100,0), // there is no black in an amber monitor afaik. use a dark orange instead
+        rgb(luma(0x00,0x20,0xEA),luma(0x00,0x20,0xEA)*44/100,0), // boost G+B
+        rgb(luma(0xD0,0x00,0x00),luma(0xD0,0x00,0x00)*44/100,0),
+        rgb(luma(0xD0,0x00,0xD0),luma(0xD0,0x00,0xD0)*44/100,0),
+        rgb(luma(0x00,0xD0,0x00),luma(0x00,0xD0,0x00)*44/100,0),
+        rgb(luma(0x00,0xD0,0xD0),luma(0x00,0xD0,0xD0)*44/100,0),
+        rgb(luma(0xD0,0xD0,0x00),luma(0xD0,0xD0,0x00)*44/100,0),
+        rgb(luma(0xD0,0xD0,0xD0),luma(0xD0,0xD0,0xD0)*44/100,0),
+
+        rgb(luma(0x00,0x20,0x00),luma(0x00,0x20,0x00)*44/100,0), // there is no black in an amber monitor afaik. use a dark orange instead
+        rgb(luma(0x00,0x20,0xEA),luma(0x00,0x20,0xEA)*44/100,0), // boost G+B
+        rgb(luma(0xD0,0x00,0x00),luma(0xD0,0x00,0x00)*44/100,0),
+        rgb(luma(0xD0,0x00,0xD0),luma(0xD0,0x00,0xD0)*44/100,0),
+        rgb(luma(0x00,0xD0,0x00),luma(0x00,0xD0,0x00)*44/100,0),
+        rgb(luma(0x00,0xD0,0xD0),luma(0x00,0xD0,0xD0)*44/100,0),
+        rgb(luma(0xD0,0xD0,0x00),luma(0xD0,0xD0,0x00)*44/100,0),
+        rgb(luma(0xD0,0xD0,0xD0),luma(0xD0,0xD0,0xD0)*44/100,0),
+    },
+    // [6] pcw-ish. take pc emulators > b/w version > green. limited to 8 lumas for better vis (should be 4!)
+    {
+        rgb(0,luma(0x00,0x20,0x00),luma(0x00,0x20,0x00)*44/100), // there is no black in a pcw monitor afaik. use a dark green instead
+        rgb(0,luma(0x00,0x20,0xEA),luma(0x00,0x20,0xEA)*44/100), // boost G+B
+        rgb(0,luma(0xD0,0x00,0x00),luma(0xD0,0x00,0x00)*44/100),
+        rgb(0,luma(0xD0,0x00,0xD0),luma(0xD0,0x00,0xD0)*44/100),
+        rgb(0,luma(0x00,0xD0,0x00),luma(0x00,0xD0,0x00)*44/100),
+        rgb(0,luma(0x00,0xD0,0xD0),luma(0x00,0xD0,0xD0)*44/100),
+        rgb(0,luma(0xD0,0xD0,0x00),luma(0xD0,0xD0,0x00)*44/100),
+        rgb(0,luma(0xD0,0xD0,0xD0),luma(0xD0,0xD0,0xD0)*44/100),
+
+        rgb(0,luma(0x00,0x20,0x00),luma(0x00,0x20,0x00)*44/100), // there is no black in a pcw monitor afaik. use a dark green instead
+        rgb(0,luma(0x00,0x20,0xEA),luma(0x00,0x20,0xEA)*44/100), // boost G+B
+        rgb(0,luma(0xD0,0x00,0x00),luma(0xD0,0x00,0x00)*44/100),
+        rgb(0,luma(0xD0,0x00,0xD0),luma(0xD0,0x00,0xD0)*44/100),
+        rgb(0,luma(0x00,0xD0,0x00),luma(0x00,0xD0,0x00)*44/100),
+        rgb(0,luma(0x00,0xD0,0xD0),luma(0x00,0xD0,0xD0)*44/100),
+        rgb(0,luma(0xD0,0xD0,0x00),luma(0xD0,0xD0,0x00)*44/100),
+        rgb(0,luma(0xD0,0xD0,0xD0),luma(0xD0,0xD0,0xD0)*44/100),
     },
     // [5] pc emulators, b/w version
     {
@@ -526,12 +577,9 @@ void frame(int drawmode, int do_sim) { // no render (<0), whole frame (0), scanl
 
     // zx_int = 1;
     //
-    // @fixme: we've been historically interrupting the z80 twice a frame during the lifetime of this emulator
-    // should be only once per frame, not twice.
-    //
     // games that are sensitive to INT placement: 
     // 48: aticatac(game), sidewize(game), parapshock(menu), arkanoid(game), 
-    // 128: blacklamp128(game)
+    // 128: blacklamp128(game) (I is set to 0x4000-0x7fff range for a couple of frames, might be that?)
     // +3: bonanzabros.dsk(menu), 
     // ANY: floatspy.tap, overscan.tap, 
 
@@ -559,6 +607,7 @@ void frame(int drawmode, int do_sim) { // no render (<0), whole frame (0), scanl
         // each scanline = 32 hsync + 36 border + 128 paper + 28 border = 224 TS/scanline
         // total = (16+64+192+48) * 224 = 320 * (32+36+128+28) = 320 * 224 = 71680 TS
 
+#if 1
         enum { _32 = _24 + 8 }; // _24 + OFFSET_Y };
 
         ENUM( TS = 224, XX = 188, BR = 32, ADD = 0 );
@@ -567,6 +616,13 @@ void frame(int drawmode, int do_sim) { // no render (<0), whole frame (0), scanl
         for( int y = 0; y <  192; ++y ) run(do_sim,0,BR,0,_32+y,pix),run(do_sim,0,128,BR*2,_32+y,pix),run(do_sim,0,TS-128-BR,(128+BR)*2,_32+y,pix);
         for( int y = 0; y < 48-1; ++y ) run(do_sim,0,TS,0,_32+192+y,pix);
         run(do_sim,0,XX,0,-1,NULL);
+#else
+        const int TS = 224, BR = 32;
+        for( int y = 0; y <  16; ++y ) run(do_sim,!y,TS,0,0,NULL);
+        for( int y = 0; y <  64; ++y ) run(do_sim,0,TS,0, y-(64-_24),pix);
+        for( int y = 0; y < 192; ++y ) run(do_sim,0,BR,0, _24+y,pix),run(do_sim,0,128,BR*2, _24+y,pix),run(do_sim,0,TS-128-BR,(128+BR)*2, _24+y,pix);
+        for( int y = 0; y <  48; ++y ) run(do_sim,0,TS,0, _24+192+y,pix);
+#endif
 
         //< @fixme: ADD here could be maybe 10Ts, according to 48k/128k cases. not sure.
     }
@@ -576,12 +632,20 @@ void frame(int drawmode, int do_sim) { // no render (<0), whole frame (0), scanl
         // each scanline = 48 hsync + 24 border + 128 paper + 24 border = 224 TS/scanline
         // total = (16+48+192+56) * 224 = 312 * (48+24+128+24) = 312 * 224 = 69888 TS
 
+#if 1
         ENUM( TS = 224, XX = 28/**27*/, BR = 32, ADD = 4 );
         run(do_sim,1,TS-XX,0,-1,NULL);
         for( int y = 1; y <   64; ++y ) run(do_sim,0,TS,0,y-(64-_24),pix);
         for( int y = 0; y <  192; ++y ) run(do_sim,0,BR,0,_24+y,pix),run(do_sim,0,128,BR*2,_24+y,pix),run(do_sim,0,TS-128-BR,(128+BR)*2,_24+y,pix);
         for( int y = 0; y <   56; ++y ) run(do_sim,0,TS,0,_24+192+y,pix);
         run(do_sim,0,XX+ADD,0,-1,NULL);
+#else
+        const int TS = 224, BR = 32, early_timings = 1;
+        run(do_sim,0,24-early_timings,0,-1,NULL), run(do_sim,1,TS-24-early_timings,0,-1,NULL);
+        for( int y = 1; y <  64; ++y ) run(do_sim,0,TS,0,y-(64-_24), pix);
+        for( int y = 0; y < 192; ++y ) run(do_sim,0,BR,0,_24+y, pix),run(do_sim,0,128,BR*2,_24+y, pix),run(do_sim,0,TS-128-BR,(128+BR)*2,_24+y, pix);
+        for( int y = 0; y <  56; ++y ) run(do_sim,0,TS,0,_24+192+y, pix);
+#endif
 
         // @fixme: ADD should be 0
         // ADD(3) fixes sidewize. why?
@@ -593,12 +657,20 @@ void frame(int drawmode, int do_sim) { // no render (<0), whole frame (0), scanl
         // each scanline = 48 hsync + 26 border + 128 paper + 26 border = 228 TS/scanline
         // total = (15+48+192+56) * 228 = 311 * (48+26+128+26) = 311 * 228 = 70908 TS
 
+#if 1
         ENUM( TS = 228, XX = 27, BR = 32, ADD = 2 );
         run(do_sim,1,TS-XX,0,-1,NULL);
         for( int y = 1; y <   63; ++y ) run(do_sim,0,TS,0,y-(63-_24),pix);
         for( int y = 0; y <  192; ++y ) run(do_sim,0,BR,0,_24+y,pix),run(do_sim,0,128,BR*2,_24+y,pix),run(do_sim,0,TS-128-BR,(128+BR)*2,_24+y,pix);
         for( int y = 0; y <   56; ++y ) run(do_sim,0,TS,0,_24+192+y,pix);
         run(do_sim,0,XX+ADD,0,-1,NULL);
+#else
+        const int TS = 228, BR = 32, early_timings = 1;
+        run(do_sim,0,26-early_timings,0,-1,NULL), run(do_sim,1,TS-26-early_timings,0,-1,NULL);
+        for( int y = 2; y <  64; ++y )  run(do_sim,0,TS,0, y-(64-_24),pix);
+        for( int y = 0; y < 192; ++y )  run(do_sim,0,BR,0, _24+y,pix),run(do_sim,0,128,BR*2, _24+y,pix),run(do_sim,0,TS-128-BR,(128+BR)*2, _24+y,pix);
+        for( int y = 0; y <  56; ++y )  run(do_sim,0,TS,0, _24+192+y,pix);
+#endif
 
         // @fixme: ADD should be 0
         // ADD(2) fixes bonanzabros.dsk. why?
@@ -608,12 +680,28 @@ void frame(int drawmode, int do_sim) { // no render (<0), whole frame (0), scanl
 
     // emulate faulty ZX_HAL10H8 chip as used in 128/+2 models
     // http://www.worldofspectrum.org/forums/showthread.php?t=38284
+    // https://sinclair.wiki.zxnet.co.uk/wiki/ZX_Spectrum_128#HAL_bugs
+    // seen: 2 frames after loading BlackLamp(128), 3000 frames while loading HuntForRedOctober(128)
+    if( do_sim )
     if( ZX_HAL10H8 )
-    if( (I(cpu) & 0xC0) && (ZX == 128 || ZX == 200) ) {
-        int bank = (page128 & 7);
-        int is_contended_bank = bank & 1;
-        if( I(cpu) >= 0x40 && I(cpu) < 0x80 ) PC(cpu) = 0;
-        if( I(cpu) >= 0xC0 && is_contended_bank ) PC(cpu) = 0;
+    if( (ZX|ZX_PENTAGON) == 128 || ZX == 200 ) {
+        static int seen = 0;
+        if( I(cpu) & 0xC0 ) {
+            int bank = (page128 & 7);
+            int is_contended_bank = bank & 1; // Banks 1, 3, 5, 7 are contended
+            int doit = 0;
+            if( I(cpu) >= 0x40 && I(cpu) < 0x80 ) doit = 1; // @todo: ula corruption instead? [0x4000-0x7fff]
+            if( I(cpu) >= 0xC0 && is_contended_bank ) doit = 1; // contended bank in [0xc000-0xffff]
+            if( doit ) {
+                seen = (seen + 1) * !!(I(cpu) & 0xC0);
+                printf("HAL10 I=$%02x[bank:%d] (seen %d frames)\n", I(cpu), I(cpu) < 0xC0 ? 2 : bank, seen);
+                // PC(cpu) = 0;
+            } else {
+                seen = 0;
+            }
+        } else {
+            seen = 0;
+        }
     }
 
     if( drawmode <= 0 )
@@ -772,6 +860,25 @@ const char *shader =
     "    vec4 color4 = texture(image, crtUV);\n"
     "    vec3 color = color4.rgb;\n"
 #endif
+
+    // green and amber crts can use intensity=[0.15..0.99]
+"    if( parameters.w > 0.0 ) "
+"    {\n"
+"        const\n"
+"        float blurSize = 1.0/512.0;\n"
+"        float intensity = parameters.w;\n"
+"        // quick blur x\n"
+"        vec4 sum = vec4(0.0);\n"
+"        sum += texture(image, vec2(crtUV.x - blurSize, crtUV.y)) * 0.40;\n"
+"        sum += texture(image, vec2(crtUV.x, crtUV.y)) * 0.19;\n"
+"        sum += texture(image, vec2(crtUV.x + blurSize, crtUV.y)) * 0.40;\n"
+"        // quick blur y\n"
+"        sum += texture(image, vec2(crtUV.x, crtUV.y - blurSize)) * 0.40;\n"
+"        sum += texture(image, vec2(crtUV.x, crtUV.y)) * 0.19;\n"
+"        sum += texture(image, vec2(crtUV.x, crtUV.y + blurSize)) * 0.40;\n"
+"        color = (sum*intensity*0.5 + texture(image, crtUV)).rgb;\n"
+"    }\n"
+
 
 #if 1
     "    /* tv refresh line*/\n"

@@ -13,6 +13,10 @@
 // so break at #8244 to get the loop value; #0C33 for 48k (14L), #0C71 for 128k (13L), #0E20 for +3 (15L)"
 // i got #0CC3 (+144), #0D01 (+144), #0DE1 (-63)
 
+// ZXDunny "Standard acceleration == max Ts per frame, emulation as normal
+// Edge loading == shortcut tape edges so they take one emulated instruction
+// Flash loading == grab all the data, figure out where it goes, inject it and exit the loader entirely"
+
 // tape
 // - red/cyan tape freq bars
 
@@ -62,8 +66,6 @@
 // - p-47 in-game click sound (ayumi? beeper?). double check against real zx spectrum
 // disciple/plusd/mgt (lack of):
 // - zxoom.z80
-// keyboard:
-// - modern typing. eg, shift+2 for quotes, not symb+P.
 // lightgun:
 // - gunstick + (kempston || kmouse) conflicts
 // mouse:
@@ -80,7 +82,7 @@
 // turborom:
 // - x4,x6 modes not working anymore. half bits either.
 // tzx:
-// - flow,gdb(wip)
+// - flow
 
 FILE *printer;
 
@@ -106,6 +108,8 @@ int ZX_FULLSCREEN = 0; // 0:no, 1:yes
 
 int ZX_TS;
 int ZX_FREQ;
+
+float ZX_FPS, ZX_RPS; // projected framerate on app, also frames the zx can render
 
 // ZX
 // ----------- serialized
@@ -272,7 +276,7 @@ byte fuller,kempston,kempston2;
 byte kempston_mouse;
 
 // beeper
-#define TAPE_VOLUME 0.15f // relative to ~~buzz~~ ay
+#define TAPE_VOLUME 0.25f // relative to buzz
 #define BUZZ_VOLUME 0.25f // relative to ay
 beeper_t buzz;
 byte ear;
@@ -314,9 +318,9 @@ FDIDisk fdd[NUM_FDI_DRIVES];
 // medias
 uint64_t media_seek[16];
 
-enum { ALL_FILES = 0, GAMES_ONLY = 6*4, TAPES_AND_DISKS_ONLY = 11*4, DISKS_ONLY = 15*4 };
+enum { ALL_FILES = 0, GAMES_AND_ZIPS = 3*4, GAMES_ONLY = 6*4, TAPES_AND_DISKS_ONLY = 11*4, DISKS_ONLY = 15*4 };
 int file_is_supported(const char *filename, int skip) {
-    const char *exts = ".gz .zip.rar.pok.scr.ay .rom.sna.z80.rzx.szx.tap.tzx.pzx.csw.dsk.img.mgt.trd.fdi.scl.$b.$c.$d.";
+    const char *exts = ".pok.scr.ay .gz .zip.rar.rom.sna.z80.rzx.szx.tap.tzx.pzx.csw.dsk.img.mgt.trd.fdi.scl.$b.$c.$d.";
     const char *ext = strrchr(filename ? filename : "", '.');
     if( !ext ) return 0;
     char ext1[8]; snprintf(ext1, countof(ext1), "%s.", ext);
@@ -336,129 +340,6 @@ int file_is_supported(const char *filename, int skip) {
 #include "zx_ula.h"
 #include "zx_lenslok.h"
 
-// 0: cannot load, 1: snapshot loaded, 2: tape loaded, 3: disk loaded, 4: ay loaded
-int loadbin_(const byte *ptr, int size, int preloader, int model) {
-    if(!(ptr && size > 10))
-        return 0;
-
-    // is it a zip? unzip & try to recurse... @todo: also .rar, .gz
-    if( size > 4 && !memcmp(ptr, "PK\3\4", 4) ) {
-        for( FILE *fp = fopen(".Spectral.loadbin.zip","wb"); fp; fclose(fp), fp = 0) {
-            fwrite(ptr, size, 1, fp);
-        }
-        int len2; char *ptr2 = unzip(".Spectral.loadbin.zip/*", &len2);
-        int ret2 = loadbin_(ptr2, len2, preloader, model);
-        return unlink(".Spectral.loadbin.zip"), free(ptr2), ret2;
-    }
-
-    if( preloader ) {
-        if( model == 0 ) model = guess(ptr, size);
-        if( model != (ZX|ZX_PENTAGON) ) boot(model, ~0u);
-        else reset(ZX|ZX_PENTAGON);
-    }
-
-    ZX_AUTOPLAY = 1;
-    ZX_AUTOSTOP = 0;
-
-    #define preload_snap(blob,len) ( sna_load(blob,len) || z80_load(blob,len) )
-
-    // pre-loaders
-    const byte*    bins[] = {
-        ld16bas, ld48bas, ld128bas, ldplus2bas, ldplus2abas, ldplus3bas,
-        ld16bin, ld48bin, ld128bin, ldplus2bin, ldplus2abin, ldplus3bin,
-    };
-    const unsigned lens[] = {
-        sizeof ld16bas, sizeof ld48bas, sizeof ld128bas, sizeof ldplus2bas, sizeof ldplus2abas, sizeof ldplus3bas,
-        sizeof ld16bin, sizeof ld48bin, sizeof ld128bin, sizeof ldplus2bin, sizeof ldplus2abin, sizeof ldplus3bin,
-    };
-
-    if( load_ay(ptr, (int)size) ) {
-        return 4;
-    }
-
-    // dsk first
-    if(!memcmp(ptr, "MV - CPC", 8) || !memcmp(ptr, "EXTENDED", 8)) {
-        if(preloader) preload_snap(ldplus3, sizeof(ldplus3));
-        return dsk_load(ptr, size), 3;
-    }
-
-    // tapes first
-    if( pzx_load(ptr, (int)size) ) {
-        int slots[] = { [1]=0,[3]=1,[8]=2,[12]=3,[13]=4,[18]=5 };
-        int is_bin = tape_type == 3, choose = slots[ZX/16] + 6 * is_bin;
-        if(preloader) preload_snap(bins[choose], lens[choose]);
-        //if(tape_has_turbo) rom_restore(); // rom_restore(), rom_patch(tape_has_turbo ? 0 : do_rompatch);
-        ZX_AUTOSTOP = tape_num_stops > 1 ? 0 : size > 65535;
-        //alert(va("numstops:%d", tape_num_stops));
-        return 2;
-    }
-    if( tzx_load(ptr, (int)size) ) {
-        int slots[] = { [1]=0,[3]=1,[8]=2,[12]=3,[13]=4,[18]=5 };
-        int is_bin = tape_type == 3, choose = slots[ZX/16] + 6 * is_bin;
-        if(preloader) preload_snap(bins[choose], lens[choose]);
-        //if(tape_has_turbo) rom_restore(); // rom_restore(), rom_patch(tape_has_turbo ? 0 : do_rompatch);
-        ZX_AUTOSTOP = tape_num_stops > 1 ? 0 : size > 65535;
-        //alert(va("numstops:%d", tape_num_stops));
-        return 2;
-    }
-    if( tap_load(ptr,(int)size) ) {
-        int slots[] = { [1]=0,[3]=1,[8]=2,[12]=3,[13]=4,[18]=5 };
-        int is_bin = tape_type == 3, choose = slots[ZX/16] + 6 * is_bin;
-        if(preloader) preload_snap(bins[choose], lens[choose]);
-        ZX_AUTOSTOP = size > 65535;
-        return 2;
-    }
-    if( csw_load(ptr,(int)size) ) {
-        int slots[] = { [1]=0,[3]=1,[8]=2,[12]=3,[13]=4,[18]=5 };
-        int is_bin = tape_type == 3, choose = slots[ZX/16] + 6 * is_bin;
-        if(preloader) preload_snap(bins[choose], lens[choose]);
-        rom_restore(); // rom_restore(), rom_patch(tape_has_turbo ? 0 : do_rompatch);
-        ZX_AUTOSTOP = 1;
-        return 2;
-    }
-
-    if( RZX_load(ptr, size) ) {
-        return 1;
-    }
-    if( szx_load(ptr, size) ) {
-        return 1;
-    }
-
-    // headerless fixed-size formats now, sorted by ascending file size.
-    if( scr_load(ptr, size) ) {
-        return 1;
-    }
-    if( rom_load(ptr, size) ) {
-        return 1;
-    }
-    if( sna_load(ptr, size) ) {
-        return regs("load .sna"), 1;
-    }
-
-    // headerless variable-size formats now
-    if( *ptr == 'N' && pok_load(ptr, size) ) {
-        return 1;
-    }
-    if( size > 87 && z80_load(ptr, size) ) {
-        return regs("load .z80"), 1;
-    }
-
-    puts("unknown file format");
-    return 0;
-}
-
-int loadbin(const byte *ptr, int size, int preloader, int model) {
-    if(!(ptr && size))
-        return 0;
-
-    int ret = loadbin_(ptr, size, preloader, model);
-    if( ret ) {
-    int change_model = ret != 2; // you select zx model before loading any tape. however, other medias (disks,snapshots,ay,etc.) change model for you actually
-    if( change_model ) ret = loadbin_(ptr, size, preloader, 0); // retry. snapshots and disks need a model change because of preloaders
-    if( change_model ) ret = loadbin_(ptr, size, preloader, 0); // retry. tries to fix a stupid bug that wont initialize fdc/+3 properly (see: defendersoftheearth.dsk on a dev build + no .sav file)
-    }
-    return ret;
-}
 
 
 static byte* merge;
@@ -563,136 +444,6 @@ void *zip_read(const char *filename, size_t *size) {
     return 0;
 }
 
-static struct zxdb ZXDB;
-int loadfile(const char *file, int preloader, int model_) {
-    if( !file ) return 0;
-    if( !is_file(file) ) return 0;
-
-    const char *bak = file;
-    static char *lastload = 0;
-    if( file != lastload ) lastload = (free(lastload), strdup(file));
-    file = lastload;
-
-#if TESTS
-    printf("\n\n%s\n-------------\n\n", file);
-#endif
-
-    char *ptr = 0; size_t size = 0;
-#if 0
-    if( strstr(file, ".zip") || strstr(file,".rar") ) {
-        ptr = zip_read(file, &size); // @leak
-#else
-    ptr = zip_read(file, &size); // @leak
-    if( 1 ) {
-#endif
-        if( ptr ) {
-            // update file from archived filename. use 1st entry if multiple entries on zipfile are found
-            for( zip *z = zip_open(file, "rb"); z; zip_close(z), z = 0 )
-            for( unsigned i = 0 ; i < zip_count(z); ++i ) {
-                if( file_is_supported(zip_name(z,i), GAMES_ONLY) ) {
-                    file = strdup(zip_name(z,i)); // @leak
-                    break;
-                }
-            }
-            // update file from archived filename. use 1st entry if multiple entries on zipfile are found
-            for( rar *r = rar_open(file, "rb"); r; rar_close(r), r = 0 )
-            for( unsigned i = 0 ; i < rar_count(r); ++i ) {
-                if( file_is_supported(rar_name(r,i), GAMES_ONLY) ) {
-                    file = strdup(rar_name(r,i)); // @leak
-                    break;
-                }
-            }
-        }
-    }
-
-    if(!ptr)
-    for( FILE *fp = fopen8(file,"rb"); fp; fclose(fp), fp = 0) {
-        fseek(fp, 0L, SEEK_END);
-        size = ftell(fp);
-        fseek(fp, 0L, SEEK_SET);
-        ptr = malloc(size); // @leak
-        fread(ptr, 1, size, fp);
-    }
-
-#if 1 // gunzip
-    if( ptr && !memcmp(ptr, "\x1f\x8b\x08", 3) ) {
-        static char *unc = 0;
-        unsigned unclen;
-        unc = gunzip(ptr, size, &unclen);
-        if( unc ) {
-            free( ptr );
-            ptr = unc;
-            size = unclen;
-        }
-    }
-#endif
-
-#if 0 // disabled at this point bc of AfterTheWar
-    if( ZX_AUTOLOCALE ) {
-        translate(ptr, size, 'en');
-    }
-#endif
-
-    int ok = 0;
-    const char *ext = strrchr(file, '.');
-    const char *extensions = ".img.mgt.trd.fdi.scl.$b .$c ."; // order must match FMT enum definitions in FDI header
-    const char *extfound = ext ? strstri(extensions, ext) : NULL;
-    if( !extfound ) {
-        // regular load
-        ok = loadbin(ptr, size, preloader, model_);
-    } else {
-        // betadisk load
-        printf("found ext: %d\n", (int)(extfound - extensions) );
-        int format = FMT_IMG + ( extfound - extensions ) / 4;
-        if( format > FMT_HOBETA ) format = FMT_HOBETA;
-        printf(
-            "FMT_IMG = %d\n"
-            "FMT_MGT = %d\n"
-            "FMT_TRD = %d\n"
-            "FMT_FDI = %d\n"
-            "FMT_SCL = %d\n"
-            "FMT_HOB = %d\n" 
-            "format = %d\n", FMT_IMG, FMT_MGT, FMT_TRD, FMT_FDI, FMT_SCL, FMT_HOBETA, format
-        );
-
-        // this temp file is a hack for now. @fixme: implement a proper file/stream abstraction in FDI library
-        for( FILE *fp = fopen(".Spectral/$$dsk", "wb"); fp; fwrite(ptr, size, 1, fp), fclose(fp), fp = 0);
-        ok = LoadFDI(&fdd[0], ".Spectral/$$dsk", format);
-        unlink(".Spectral/$$dsk");
-
-        if( ok ) {
-            boot(model_ = 128|1, KEEP_MEDIA);
-
-            // type RUN+ENTER if bootable disk found
-            extern window *app;
-            if( !key_pressed( TK_SHIFT) )
-            if( memmem(ptr, size, "boot    B", 9) ) {
-                loadbin(ldtrdos, ldtrdos_length, 0, model_);
-            }
-        }
-    }
-
-    if( ok && preloader ) { // probably a game, so use ZXDB
-        // ZXDB = zxdb_free(ZXDB);
-        zxdb_print( ZXDB = zxdb_search(file) );
-
-        if( !ZXDB.tok )
-        zxdb_print( ZXDB = zxdb_search(bak) );
-    }
-
-    if( !ok ) {
-        if( ptr ) free(ptr);
-    }
-
-    return ok;
-}
-
-int reload(int model) {
-    bool zxdb_load(const char *id_, int ZX_MODEL);
-    if( ZX_MEDIA ) if( loadfile(ZX_MEDIA,1,model) ) return 1;
-    if( ZX_MEDIA ) if( zxdb_load(ZX_MEDIA, model) ) return 1;
-    return 0;
-}
 
 
 enum SpecKeys {
@@ -870,6 +621,11 @@ void port_0x3ffd(byte value) {
 
 
 void config(int ZX) {
+    // note about issue2/3:
+    // i feel there are more issue3-only games (like GoldMine(1983)) than issue2-only
+    // (like Rasputin48K, AbuSimbelProfanation(Gremlin), Spynads). cannot confirm this
+    // claim for now, but we'll set 16K as issue2 by default, and anything else above as issue3.
+        
     if(ZX >= 16) {
         MEMr[3]=DUMMY_BANK(0);
         MEMr[2]=DUMMY_BANK(0);
@@ -881,7 +637,7 @@ void config(int ZX) {
         MEMw[1]=RAM_BANK(5);
         MEMw[0]=DUMMY_BANK(0);
 
-        issue2=1;
+        issue2=1; // can be either 0 or 1
         nextkey=0;
         page128=32; // -1
         page2a=128; // -1
@@ -1150,16 +906,6 @@ void frame_new() {
             }
         }
 
-        #if 1 // @fixme: this is hack that eats pauses if we're stuck while trying to read pauses (BookOfTheDeadPart1(GDB))
-        static int pause_hz = 0;
-        pause_hz = (pause_hz+1) * ( tape_hz > 300  && tape_playing() && voc_pos > 1 && voc[voc_pos].debug == 'u' && voc[voc_pos-1].debug == 'u' );
-        if( pause_hz > (50*5) ) {
-            pause_hz = 0;
-            while( voc_pos < voc_len && voc[voc_pos].debug == 'u' ) voc_pos++;
-            voc_pos -= 2 * (voc_pos > 1);
-        }
-        #endif
-
         autoplay = 0;
         autostop = 0;
     }
@@ -1205,8 +951,8 @@ void sys_audio() {
     const float beeper_volumes[] = {
         TAPE_VOLUME, // rest volume
         TAPE_VOLUME, // tape volume (??%) see diagram above (*)
-        0.96f, // beeper volume (96%)
-        1.00f  // tape+beeper volume (100%)
+        1, // 0.96f, // beeper volume (96%)
+        2, // 1.00f  // tape+beeper volume (100%)
     };
 
     int save_audio = spk & 0x8;
@@ -1237,7 +983,7 @@ void sys_audio() {
             ay38910_tick(&ay[1], output+4), ay_sample2 = ay[1].sample;
         }
 
-        if( ZX_AY == 2 ) if(!(even & 0x7F)) { // 2/256 freq. even == 0 || even == 0x80
+        if( ZX_AY == 2 ) if( !(even & 0x3F) ) { // 4/256 frequency. same as `even == 0 || even == 0x80`
             ay_sample1 = ay_sample2 = ayumi_render(&ayumi[0], ayumi_fast, 1, output+1) * 2;
 
             if( ZX_PENTAGON )
@@ -1256,8 +1002,8 @@ void sys_audio() {
 
         float master = 0.98f * !!ZX_AY; // @todo: expose ZX_AY_VOLUME / ZX_BEEPER_VOLUME instead
         float sample = (buzz.sample * 0.75f + ay_sample * 0.25f) * master;
-        float digital = mix(0.5); // 70908/44100. 69888/44100. // ZX_TS/s); 22050 11025 44100
-        sample += digital * 1; // increase volume
+        //float digital = mix(0.5); // 70908/44100. 69888/44100. // ZX_TS/s); 22050 11025 44100
+        //sample += digital * 1; // increase volume
 
         audio_queue(sample, output);
     }
@@ -1576,6 +1322,13 @@ byte inport_(word port) {
         if((port & 0xf002) == 0x2000) { return inport_0x2ffd(); } // 0010xxxx xxxxxx0x   fdc status
     }
 
+    // Reads from port 0x7ffd cause a crash, as the 128's HAL10H8 chip does not distinguish between reads and writes to this port, resulting in a floating data bus being used to set the paging registers.
+    // PRINT IN 32765 ; 0x7ffd
+    // https://sinclair.wiki.zxnet.co.uk/wiki/ZX_Spectrum_128#HAL_bugs
+    if ( (ZX|ZX_PENTAGON) == 128 || ZX == 200 ) 
+        if( ZX_HAL10H8 )
+            if(!(port & (0xFFFF^0x7FFD))) { uint8_t v = floating_bus ? *floating_bus : 0xFF; port_0x7ffd(v); return v; }
+
     if( ZX_MOUSE )
     {
         // kempston mouse detection
@@ -1775,7 +1528,7 @@ byte inport_(word port) {
 
             if( tape_inserted() )
             {
-                unsigned pc = PC(cpu) - 2;
+                uint16_t pc = PC(cpu) - 2;
                 byte *addr = ADDR8(pc);
 
                 if( 0
@@ -2215,6 +1968,14 @@ void z80_quickreset(int warm) {
     }
 }
 
+static struct zxdb ZXDB;
+
+int reload(int model, int forced) {
+    int load(const char *fname, int model);
+    if( ZX_MEDIA ) if( load(ZX_MEDIA,model * !!forced) ) return 1;
+    return 0;
+}
+
 void eject() {
     Reset1793(&wd,fdd,WD1793_EJECT);
     fdc_reset();
@@ -2258,6 +2019,7 @@ void reset(unsigned FLAGS) {
     ay38910_reset(&ay[1]);
 
     mixer_reset();
+    audio_reset();
 
     ula_reset();
     palette_use(ZX_PALETTE, ZX_PALETTE ? 0 : 1);
@@ -2313,7 +2075,7 @@ void boot0(int model, unsigned FLAGS) {
     ay38910_init(&ay[1], &ay_desc);
 
     // ayumi
-    const int is_ym = 0; // should be 0, but 1 sounds more Speccy to me somehow (?)
+    const int is_ym = 1; // should be 0, but 1 sounds more Speccy to me somehow (?)
     const int eqp_stereo_on = 0;
     const double pan_modes[7][3] = { // pan modes, 7 stereo types
       {0.50, 0.50, 0.50}, // MONO, original
@@ -2324,9 +2086,9 @@ void boot0(int model, unsigned FLAGS) {
       {0.50, 0.90, 0.10}, // CAB
       {0.90, 0.50, 0.10}, // CBA
     };
-
-    if (!ayumi_configure(&ayumi[0], is_ym, 2000000 * (2000000.0 / (ZX_FREQ / 2.0)), AUDIO_FREQUENCY)) { // ayumi is AtariST based, i guess. use 2mhz clock instead
-        die("ayumi_configure error (wrong sample rate?)");
+    // assert( ayumi_freq < 2822400 );
+    if (!ayumi_configure(&ayumi[0], is_ym, (2822400/2) * (ZX_FREQ / 3546894.0), AUDIO_FREQUENCY)) { // ayumi is AtariST based, i guess. use 2mhz clock instead
+        die("ayumi_configure error (wrong ay freq?)");
     }
     const double *pan = pan_modes[0];   // @fixme: ACB, mono for now
     if(ZX_PENTAGON) pan = pan_modes[0]; // @fixme: ABC, mono for now
@@ -2340,6 +2102,7 @@ void boot0(int model, unsigned FLAGS) {
     do_once Reset1793(&wd,fdd,WD1793_INIT);
 
     rom_restore();
+    // if(ZX_TURBOROM) rom_patch_turbo();
 
     reset(FLAGS);
     z80_quickreset(0);
@@ -2354,4 +2117,438 @@ void boot(int model, unsigned FLAGS) {
 
     // hack: force next cycle if something went wrong. @fixme: investigate why
     if( model & 1 ) if(!ZX_PENTAGON) ZX_PENTAGON = 1, rom_restore();
+}
+
+int gleck_mode() {
+    unsigned pc = PC(cpu);
+    if( pc < 0x4000 ) {
+        byte MODE = READ8(0x5C41);
+        byte FLAGS = READ8(0x5C3B);
+        byte FLAGS2 = READ8(0x5C6A);
+        //byte ERRNR = READ8(0x5C3A); // last known errno. 0xFF if running a prog, or fresh basic. !0xFF definitely in basic
+
+        return
+            MODE == 2 ? 'G' :
+            MODE == 1 ? 'E' :
+            FLAGS2 & 8 ? 'C' : FLAGS & 8 ? 'L' : 'K';
+    }
+    return 0;
+}
+
+// Function to check whether we're editing a listing in BASIC mode...
+// (there must be a better way to detect it other than this)
+int is_basic_mode() {
+    unsigned pc = PC(cpu);
+    if( pc < 0x4000 ) {
+        unsigned sp = SP(cpu);
+        for( int i = 0; i < 4; ++i ) {
+            unsigned sp1 = sp + i;
+            if( sp1 >= 0xFFFF ) break;
+            pc = READ16(sp1);
+            //printf("%04x, ", pc);
+            if( pc < 0x4000 ) {
+                pc &= 0xFF00;
+                if( ZX >= 210 )
+                if( pc == 0x0700 ) return /*puts("Y"),*/ 1; // +2A/+3: Main routine to process menus & editing functions
+                if( pc == 0x0F00 ) return /*puts("Y"),*/ 1; // 16/48: 'editor' routines
+                if( pc == 0x1500 ) return /*puts("Y"),*/ 1; // 16/48: input handler loop
+                if( pc == 0x2600 ) return /*puts("Y"),*/ 1; // +2/128: editor
+                if( pc == 0x2700 ) return /*puts("Y"),*/ 1; // p128: trdos
+            }
+        }
+    }
+    return /*puts("N"),*/ 0;
+}
+
+// 0: cannot load, 1: snapshot loaded, 2: tape loaded, 3: disk loaded, 4: ay loaded
+int loadbin_(const byte *ptr, int size, int preloader) {
+    ZX_AUTOPLAY = 1;
+    ZX_AUTOSTOP = 0;
+
+    #define preload_snap(blob,len) ( sna_load(blob,len) || z80_load(blob,len) )
+
+    // pre-loaders
+    const byte*    bins[] = {
+        ld16bas, ld48bas, ld128bas, ldplus2bas, ldplus2abas, ldplus3bas,
+        ld16bin, ld48bin, ld128bin, ldplus2bin, ldplus2abin, ldplus3bin,
+    };
+    const unsigned lens[] = {
+        sizeof ld16bas, sizeof ld48bas, sizeof ld128bas, sizeof ldplus2bas, sizeof ldplus2abas, sizeof ldplus3bas,
+        sizeof ld16bin, sizeof ld48bin, sizeof ld128bin, sizeof ldplus2bin, sizeof ldplus2abin, sizeof ldplus3bin,
+    };
+
+    if(!(ptr && size > 10))
+        return 0;
+
+    if( load_ay(ptr, (int)size) ) {
+        return 4;
+    }
+
+    // dsk first
+    if(!memcmp(ptr, "MV - CPC", 8) || !memcmp(ptr, "EXTENDED", 8)) {
+        if(preloader) preload_snap(ldplus3, sizeof(ldplus3));
+        return dsk_load(ptr, size), 3;
+    }
+
+    // tapes first
+    if( pzx_load(ptr, (int)size) ) {
+        int slots[] = { [1]=0,[3]=1,[8]=2,[12]=3,[13]=4,[18]=5 };
+        int is_bin = tape_type == 3, choose = slots[ZX/16] + 6 * is_bin;
+        if(preloader) preload_snap(bins[choose], lens[choose]);
+        ZX_AUTOSTOP = tape_num_stops > 1 ? 0 : size > 65535;
+        //alert(va("numstops:%d", tape_num_stops));
+        return 2;
+    }
+    if( tzx_load(ptr, (int)size) ) {
+        int slots[] = { [1]=0,[3]=1,[8]=2,[12]=3,[13]=4,[18]=5 };
+        int is_bin = tape_type == 3, choose = slots[ZX/16] + 6 * is_bin;
+        if(preloader) preload_snap(bins[choose], lens[choose]);
+        ZX_AUTOSTOP = tape_num_stops > 1 ? 0 : size > 65535;
+        //alert(va("numstops:%d", tape_num_stops));
+        return 2;
+    }
+    if( tap_load(ptr,(int)size) ) {
+        int slots[] = { [1]=0,[3]=1,[8]=2,[12]=3,[13]=4,[18]=5 };
+        int is_bin = tape_type == 3, choose = slots[ZX/16] + 6 * is_bin;
+        if(preloader) preload_snap(bins[choose], lens[choose]);
+        ZX_AUTOSTOP = size > 65535;
+        return 2;
+    }
+    if( csw_load(ptr,(int)size) ) {
+        int slots[] = { [1]=0,[3]=1,[8]=2,[12]=3,[13]=4,[18]=5 };
+        int is_bin = tape_type == 3, choose = slots[ZX/16] + 6 * is_bin;
+        if(preloader) preload_snap(bins[choose], lens[choose]);
+        ZX_AUTOSTOP = 1;
+        return 2;
+    }
+
+    if( RZX_load(ptr, size) ) {
+        return 1;
+    }
+    if( szx_load(ptr, size) ) {
+        return 1;
+    }
+
+    // headerless fixed-size formats now, sorted by ascending file size.
+    if( scr_load(ptr, size) ) {
+        return 1;
+    }
+    if( rom_load(ptr, size) ) {
+        return 1;
+    }
+    if( sna_load(ptr, size) ) {
+        return regs("load .sna"), 1;
+    }
+
+    // headerless variable-size formats now
+    if( *ptr == 'N' && pok_load(ptr, size) ) {
+        return 1;
+    }
+    if( size > 87 && z80_load(ptr, size) ) {
+        return regs("load .z80"), 1;
+    }
+
+    puts("unknown file format");
+    return 0;
+}
+
+int loadbin(const byte *ptr, int size, int use_preloader) {
+    if(!(ptr && size))
+        return 0;
+
+    int ret = loadbin_(ptr, size, use_preloader);
+    if( ret ) {
+    int change_model = ret != 2; // you select zx model before loading any tape. however, other medias (disks,snapshots,ay,etc.) change model for you actually
+    if( change_model ) ret = loadbin_(ptr, size, use_preloader); // retry. snapshots and disks need a model change because of preloaders
+    if( change_model ) ret = loadbin_(ptr, size, use_preloader); // retry. tries to fix a stupid bug that wont initialize fdc/+3 properly (see: defendersoftheearth.dsk on a dev build + no .sav file)
+    }
+    return ret;
+}
+
+int mount(const char *file, byte *ptr, int len, int use_preloader) {
+    int ok = 0;
+    const char *ext = strrchr(file, '.');
+    const char *extensions = ".img.mgt.trd.fdi.scl.$b .$c ."; // order must match FMT enum definitions in FDI header
+    const char *extfound = ext ? strstri(extensions, ext) : NULL;
+    if( !extfound ) {
+
+        #if ZX_CUSTOM_ROMS
+            if( ptr[0] == 0xF3 && len == 16384 &&               ZX <=  48 ) return rom48          = memcpy(malloc(0x4000*1), ptr, 0x4000*1), rom_restore(), PC(cpu) = 0, 1; // @leak
+            if( ptr[0] == 0xF3 && len == 32768 && (ZX|ZX_PENTAGON) == 128 ) return rom128         = memcpy(malloc(0x4000*2), ptr, 0x4000*2), rom_restore(), PC(cpu) = 0, 1; // @leak
+            if( ptr[0] == 0xF3 && len == 32768 &&               ZX == 200 ) return romplus2       = memcpy(malloc(0x4000*2), ptr, 0x4000*2), rom_restore(), PC(cpu) = 0, 1; // @leak
+            if( ptr[0] == 0xF3 && len == 65536 &&               ZX >= 210 ) return romplus341     = memcpy(malloc(0x4000*4), ptr, 0x4000*4), rom_restore(), PC(cpu) = 0, 1; // @leak
+            if( ptr[0] == 0xF3 && len == 32768 && (ZX|ZX_PENTAGON) == 129 ) return rompentagon128 = memcpy(malloc(0x4000*2), ptr, 0x4000*2), rom_restore(), PC(cpu) = 0, 1; // @leak
+        #endif
+
+        // regular load
+        ok = loadbin(ptr, len, use_preloader);
+    } else {
+        // betadisk load
+        printf("found ext: %d\n", (int)(extfound - extensions) );
+        int format = FMT_IMG + ( extfound - extensions ) / 4;
+        if( format > FMT_HOBETA ) format = FMT_HOBETA;
+        printf(
+            "FMT_IMG = %d\n"
+            "FMT_MGT = %d\n"
+            "FMT_TRD = %d\n"
+            "FMT_FDI = %d\n"
+            "FMT_SCL = %d\n"
+            "FMT_HOB = %d\n" 
+            "format = %d\n", FMT_IMG, FMT_MGT, FMT_TRD, FMT_FDI, FMT_SCL, FMT_HOBETA, format
+        );
+
+        // auto-patch .scl files to have a bootable basic file
+        if( use_preloader && !memcmp(ptr, "SINCLAIR", 8) && !memmem(ptr, len, "boot    B", 9) ) {
+            int num_files = ptr[8];
+            for( int i = 0; i < num_files; ++i ) {
+                char *file = ptr + 0x9 + 14 * i; // [x8] name + [x1] type + [x3] params + [x1] length
+                char *ext = file + 8;
+                if( *ext == 'B' ) {
+                    memcpy(file, "boot    B", 9);
+                }
+            }
+        }
+
+        // this temp file is a hack for now. @fixme: implement a proper file/stream abstraction in FDI library
+        for( FILE *fp = fopen(".Spectral/$$dsk", "wb"); fp; fwrite(ptr, len, 1, fp), fclose(fp), fp = 0);
+        ok = LoadFDI(&fdd[0], ".Spectral/$$dsk", format);
+        unlink(".Spectral/$$dsk");
+
+        if( ok ) {
+            // type RUN+ENTER if bootable disk found
+            if( use_preloader && memmem(ptr, len, "boot    B", 9) ) {
+                ok = loadbin(ldtrdos, ldtrdos_length, 0);
+            }
+        }
+    }
+    return ok;
+}
+
+char *guessnam_;
+char *guessbin_;
+int   guesslen_;
+
+int guess_v2(const char *filename) {
+    guessnam_ = NULL;
+    guessbin_ = NULL;
+    guesslen_ = 0;
+
+    eject();
+
+    // algorithm:
+    // 1st) read zxdb info (Elite: 48k/128k, so 128k), unless
+    // 2nd) read zip filename recursively (Elite48.zip, so 48k), unless
+    // 3rd) read filename info (Elite128_2.tzx, so 128k), unless
+    // 4th) read basic program "ELITE48", so 48k, unless
+    // 5th) re-selected model from UI
+    // local cases: plyuk.zip/plyuk128.bas, ringo.zip/ringo128.bas td128/td128.bas
+    // local cases: oldtower(48k).tap, oldtower(128k).tap, oldtower(pentagon).tap
+    // zxdb  cases: elite, saboteur2, cabal, narc, nigelmansell, lonewolf3, ...
+    //
+    // @todo: provide hints to zxdb_search() like publisher or year if found in the filename. See: Jaws(1984).tap vs Jaws(AlternativeSoftwareLtd).tzx
+    if( filename ) {
+
+        static int len = 0; len = 0;
+        static char *ptr = 0; if(ptr) free(ptr); ptr = 0;
+        static int model = 0; model = 0;
+
+        // [1] from zxdb
+        {
+            const char *id = filename;
+            for( zxdb z = zxdb_search(id, 0); z.tok; zxdb_free(z), z.tok = 0) { // no multiple results
+                model = zxdb_model(ZXDB = zxdb_dup(z));
+
+                if( id[0] == '#' ) {
+                    const
+                    char *zxdb_url2(const char *id);
+                    char *zxdb_download2(const char *id_, int *len);
+                    ptr = zxdb_download2(id, &len);
+                    if( ptr ) filename = zxdb_url2(id);
+                }
+            }
+        }
+
+        if( !ptr )
+        ptr = readfile(filename, &len);
+
+        if( !ptr )
+        return 0;
+
+        // [2] from filename
+
+        int hint2 = 0;
+
+repeat:;
+
+        if( strrchr(filename, '/') ) filename = strrchr(filename, '/')+1;
+        if( strrchr(filename,'\\') ) filename = strrchr(filename,'\\')+1;
+
+        /**/ if( strstr (filename+1, "48") )       model = 48;
+        else if( strstr (filename+1, "128") )      model = 128;
+        else if( strstri(filename+1, "pentagon") ) model = 129;
+        else if( strstri(filename+1, ".dsk") )     model = 300;
+        else if( strstri(filename+1, ".$b") )      model = 129;
+        else if( strstri(filename+1, ".$c") )      model = 129;
+        else if( strstri(filename+1, ".scl") )     model = 129;
+        else if( strstri(filename+1, ".img") )     model = 129;
+        else if( strstri(filename+1, ".mgt") )     model = 129;
+        else if( strstri(filename+1, ".fdi") )     model = 129;
+        else if( strstri(filename+1, ".trd") )     model = 129;
+        else if( strstr (filename+1, "ZX7") )      hint2 = 128;
+
+        // [3] from container
+
+            // is it zip,rar or gzip? uncompress & try to recurse...
+            if( ptr && !memcmp(ptr, "\x1f\x8b\x08", 3) ) {
+                unsigned unclen;
+                char *unc = gunzip(ptr, len, &unclen);
+                if( unc ) {
+                    free( ptr );
+                    ptr = unc;
+                    len = unclen;
+
+                    filename = va("%s", ptr + 10);
+                    goto repeat;
+                }
+            }
+
+            // is it a zip? unzip & try to recurse...
+            if( len > 4 && !memcmp(ptr, "PK\3\4", 4) ) {
+                for( FILE *fp = fopen(".Spectral/loadbin.zip","wb"); fp; fclose(fp), fp = 0) {
+                    fwrite(ptr, len, 1, fp);
+                }
+
+                // scan archive. use 1st entry if multiple entries on archive are found
+                char *bin = 0;
+                for( zip *z = zip_open(".Spectral/loadbin.zip", "rb"); z; zip_close(z), z = 0 ) {
+                    for( unsigned i = 0 ; !bin && i < zip_count(z); ++i ) {
+                        if( !bin && file_is_supported(zip_name(z,i), GAMES_AND_ZIPS) ) {
+                            bin = zip_extract(z,i);
+                            if( bin )
+                                filename = va("%s", zip_name(z,i)),
+                                len = zip_size(z,i);
+                        }
+                    }
+                    for( unsigned i = 0 ; !bin && i < zip_count(z); ++i ) {
+                        if( !bin && file_is_supported(zip_name(z,i), ALL_FILES) ) {
+                            bin = zip_extract(z,i);
+                            if( bin )
+                                filename = va("%s", zip_name(z,i)),
+                                len = zip_size(z,i);
+                        }
+                    }
+                }
+                unlink(".Spectral/loadbin.zip");
+
+                // rinse and repeat
+                if( bin ) { if(ptr) free(ptr); ptr = bin; goto repeat; }
+            }
+
+            // is it a rar? unrar & try to recurse...
+            if( len > 4 && !memcmp(ptr, "Rar!", 4) ) {
+                for( FILE *fp = fopen(".Spectral/loadbin.rar","wb"); fp; fclose(fp), fp = 0) {
+                    fwrite(ptr, len, 1, fp);
+                }
+
+                // scan archive. use 1st entry if multiple entries on archive are found
+                char *bin = 0;
+                for( rar *z = rar_open(".Spectral/loadbin.rar", "rb"); z; rar_close(z), z = 0 ) {
+                    for( unsigned i = 0 ; !bin && i < rar_count(z); ++i ) {
+                        if( !bin && file_is_supported(rar_name(z,i), GAMES_AND_ZIPS) ) {
+                            bin = rar_extract(z,i);
+                            if( bin )
+                                filename = va("%s", rar_name(z,i)),
+                                len = rar_size(z,i);
+                        }
+                    }
+                    for( unsigned i = 0 ; !bin && i < rar_count(z); ++i ) {
+                        if( !bin && file_is_supported(rar_name(z,i), ALL_FILES) ) {
+                            bin = rar_extract(z,i);
+                            if( bin )
+                                filename = va("%s", rar_name(z,i)),
+                                len = rar_size(z,i);
+                        }
+                    }
+                }
+                unlink(".Spectral/loadbin.rar");
+
+                // rinse and repeat
+                if( bin ) { if(ptr) free(ptr); ptr = bin; goto repeat; }
+            }
+
+        // [4] from zxdata
+
+        int hint4 = guess_v1(ptr, len);
+        if( hint4 ) model = hint4;
+        if( hint2 ) if( !model ) model = hint2;
+
+        guessbin_ = ptr;
+        guesslen_ = len;
+        guessnam_ = va("%s", filename);
+
+        return model;
+    }
+    return 0; // cannot guess
+}
+
+// if( preloader ) zxdb_search(); // probably a game, so infer ZXDB from filename
+// if( file_is_supported(zip_name(z,i), GAMES_ONLY) ) {
+
+int load_should_clear = 1;
+int load(const char *filename, int model) { // `model`: explicit model to use, or 0 to autodetect
+#if TESTS
+    printf("\n\n%s\n-------------\n\n", filename);
+#endif
+
+    // guess media
+    int hint = guess_v2(filename);
+    if( model == 0 ) model = hint;
+    if( model == 0 ) model = ZX|ZX_PENTAGON;
+    if( model > 0 && load_should_clear ) {
+        /**/ if( model == 129 ) boot(ZX = 129, ~0u);
+        else if( model == 300 ) boot(ZX = 300, ~0u);
+        else if( model == 210 ) boot(ZX = 210, ~0u);
+        else if( model == 210 ) boot(ZX = 210, ~0u); // @fixme +2B
+        else if( model == 200 ) boot(ZX = 200, ~0u);
+        else if( model == 128 ) boot(ZX = 128, ~0u); // @fixme USR0
+        else if( model == 128 ) boot(ZX = 128, ~0u);
+        else if( model ==  16 ) boot(ZX = 16, ~0u);
+        else                    boot(ZX = 48, ~0u);
+    }
+    // rom_restore();
+
+    int use_preloader = load_should_clear ? 1 : 0; // using a preloader would reset z80 state
+    load_should_clear = 1;
+
+    // mount media
+    if( !guessnam_ ) return 0;
+    if( !guessbin_ ) return 0;
+    if( !guesslen_ ) return 0;
+    int rc = mount(guessnam_, guessbin_, guesslen_, use_preloader);
+    return rc;
+}
+
+// compares both urls. returns true they are apart by a single ascii step
+int are_sequential_urls(const char *url1, const char *url2) {
+    if( !url1 ) return 0;
+    if( !url2 ) return 0;
+
+    // basenames and their lengths
+    const char *base1 = strrchr(url1, '/') ? strrchr(url1, '/')+1 : url1; int len1 = strlen(base1);
+    const char *base2 = strrchr(url2, '/') ? strrchr(url2, '/')+1 : url2; int len2 = strlen(base2);
+
+    // multi-load tapes and disks are well named (eg, Mutants - Side 1.tzx). 
+    // following oneliner hack prevents some small filenames to be catched in the 
+    // diff trap below. eg, 1942.tzx / 1943.tzx; they do not belong to each other
+    // albeit their ascii diff is exactly `1`
+    if( len1 > 8 )
+
+    if( len1 == len2 ) {
+        int diff = 0;
+        for( int i = 0; i < len1; ++i ) {
+            diff += base1[i] - base2[i];
+        }
+        return diff == 1;
+    }
+    return 0;
 }

@@ -116,13 +116,18 @@ static float _beeper_dcadjust(beeper_t* bp, float s) {
 }
 
 bool beeper_tick(beeper_t* bp) {
+#if 0
     _beeper_dcadjust(bp, (float)bp->state * bp->volume * bp->base_volume); // https://github.com/floooh/chips/pull/100
+#endif
     /* generate a new sample? */
     bp->counter -= BEEPER_FIXEDPOINT_SCALE;
     if (bp->counter <= 0) {
         bp->counter += bp->period;
+#if 0
         // bp->sample = _beeper_dcadjust(bp, (float)bp->state * bp->volume * bp->base_volume);
         bp->sample = bp->dcadj_sum / BEEPER_DCADJ_BUFLEN; // https://github.com/floooh/chips/pull/100
+#endif
+        bp->sample = (float)bp->state * bp->volume * bp->base_volume;
         return true;
     }
     return false;

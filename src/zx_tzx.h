@@ -21,7 +21,7 @@ int tzx_load(const byte *fp, int len) {
     tape_reset();
 
     int valid=1;
-    unsigned processed = 0;
+    unsigned processed = 0, ids = 0;
     unsigned pulses, pilot, sync1, sync2, zero, one, pause, bytes, count, bits;
 
     int group_level = 0;
@@ -29,11 +29,13 @@ int tzx_load(const byte *fp, int len) {
 
     // parse blocks till end of tape
     const char *warning = 0;
-    for(byte *src = (byte*)fp, *end = src+len; valid && src < end; ++processed) {
+    for(byte *src = (byte*)fp, *end = src+len; valid && src < end; ++processed, ++ids) {
         int id = *src++;
 
         unsigned bytes = 0;
         const char *blockname = "", *debug = "";
+
+        tape_has_turbo |= id > 0x10 && id < 0x20;
 
         switch (id) {
             default:
@@ -47,12 +49,12 @@ int tzx_load(const byte *fp, int len) {
                 pulses = src[0] < 128 ? DELAY_HEADER : DELAY_DATA; // < 4 ?
 
                 // this section improves our tape preview/browser by inserting large silences
-                // before all .bas sections within a large tape. the only exception would
-                // be finding two or more consecutive .bas loaders at beginning of tape (<5% progress)
-                int is_basic = src[0] == 0 && src[1] == 0, at_begin = ((src-fp)/(double)len) < 0.05;
+                // before any .bas section within a large tape. the only exception would be
+                // finding two or more consecutive .bas loaders at beginning of tape (<1.5% progress) (see:nautilus, trainers or ula+ loaders)
+                int is_basic = src[0] == 0 && src[1] == 0, at_begin = ((src-fp)/(double)len) < 0.015;
                 if( is_basic && !at_begin ) tape_render_pause(HYPER_LARGE_PAUSE);
 
-                tape_render_full(src, bytes, 8, pulses, PILOT, SYNC1, SYNC2, ZERO, ONE, pause);
+                tape_render_full(src, bytes, 8, pulses, PILOT, SYNC1, SYNC2, ZERO, ONE, is_basic && ids <= 1 ? 0 : pause); // trim excessive initial pauses in some tapes like Shinobi(Drosoft)(60s) or Nautilus(29s). rom can load bas headers with 0ms pauses in any case.
                 byte *name = src+2, *eos = name+10; while( bytes >= 12 && name < eos && name[0] < 32 ) ++name;
                 debug = va("%ums [%02x][%02x] %.*s", pause, src[0],src[1], (src[0] < 128 && bytes >= 12) * (int)(eos-name), name);
                 src += bytes;
@@ -69,7 +71,6 @@ int tzx_load(const byte *fp, int len) {
                 pause  = (*src++); pause  |= (*src++)*0x100;
                 bytes  = (*src++); bytes  |= (*src++)*0x100; bytes |= (*src++)*0x10000;
                 tape_render_full(src, bytes, bits, pulses, pilot, sync1, sync2, zero, one, pause);
-                tape_has_turbo = 1;
                 debug = va("bits:%u N:%u P:%u S1:%u S2:%u 0:%u 1:%u %ums %.*s", bits, pulses, pilot, sync1, sync2, zero, one, pause, src[0] < 128 ? 10 : 0, bytes >= 12 ? src+1+!src[1] : (byte*)"");
                 src += bytes;
 
@@ -78,7 +79,6 @@ int tzx_load(const byte *fp, int len) {
                 pilot  = (*src++); pilot  |= (*src++)*0x100;
                 pulses = (*src++); pulses |= (*src++)*0x100;
                 tape_render_pilot(pulses, pilot);
-                tape_has_turbo = 1;
                 debug = va("pulses:%u, pilot:%u", pulses, pilot);
                 src += 0;
 
@@ -90,7 +90,6 @@ int tzx_load(const byte *fp, int len) {
                     tape_render_sync(sync1);
                     if(i==0) debug = va("pulses:%u, sync:%u [...]", pulses, sync1);
                 }
-                tape_has_turbo = 1;
                 src += 0;
 
             break; case 0x14: // OK(1)
@@ -102,7 +101,6 @@ int tzx_load(const byte *fp, int len) {
                 bytes  = (*src++); bytes  |= (*src++)*0x100; bytes |= (*src++)*0x10000;
                 tape_render_data(src, bytes, bits, zero, one, 2);
                 tape_render_pause(pause);
-                tape_has_turbo = 1;
                 debug = va("bytes:%5u pause:%3ums 0:%3u 1:%4u bits:%u", bytes, pause, zero, one, bits);
                 src += bytes;
 
@@ -129,7 +127,6 @@ int tzx_load(const byte *fp, int len) {
                 voc_len -= 8 - bits; // trim ending excess bits
 
                 tape_render_stop();
-                tape_has_turbo = 1;
 
             break; case 0x18: // OK, ignored. see all cases: OlimpoEnGuerra(Part2), CaseOfMurderA, AdvancedGretaThunbergSimulator
                 blockname = "CSW";
@@ -216,16 +213,19 @@ int tzx_load(const byte *fp, int len) {
                 if( (NB != 1 && NB != 8) )
                 warning = "Report this tape: TZX block $19 not fully supported.";
 
-            break; case 0x20: // OK(0) // TheMunsters, Untouchables(HitSquad)
+            break; case 0x20: // OK(0) // TheMunsters, Untouchables(HitSquad), Diver(2004)
                 blockname = "pauseOrStop";
                 pause  = (*src++); pause  |= (*src++)*0x100; 
                 debug = va("%ums", pause);
-                if(!pause) tape_render_stop();
-                else tape_render_pause(pause);
+                if(pause) tape_render_pause(pause);
+                else
+                    tape_render_stop(),
+                    tape_render_pause(HYPER_LARGE_PAUSE); // tape_render_pause(1000); // experimental
 
             break; case 0x21: // IGNORED (see: BleepLoad)
                 blockname = "groupStart";
-                bytes  = (*src++);
+                bytes = (*src++);
+                debug = va("%.*s", bytes, src);
                 src += bytes;
 
                 group_level++;
@@ -241,19 +241,20 @@ int tzx_load(const byte *fp, int len) {
                 bytes  = (*src++); bytes  |= (*src++)*0x100;
                 src += 0;
 
-            break; case 0x24: // OK?: Hol-lywoodPoker, MarioBros
+            break; case 0x24: // OK?: HollywoodPoker, MarioBros, Hysteria
                 blockname = "loopStart";
                 count  = (*src++); count  |= (*src++)*0x100;
                 src += 0;
 
                 loop_counter = count;
                 loop_pointer = (unsigned)(src - (byte*)fp);
+                debug = va("i<%d", count);
 
-            break; case 0x25: // OK?: HollywoodPoker
+            break; case 0x25: // OK?: HollywoodPoker, Hysteria
                 blockname = loop_counter == 1 ? "loopEnd" : 0;
                 src += 0;
 
-                if( --loop_counter ) src = (byte*)fp + loop_pointer;
+                if( loop_counter-- > 0 ) src = (byte*)fp + loop_pointer;
 
             break; case 0x26: // IGNORED: HollywoodPoker
                 blockname = "callSeq";
@@ -347,12 +348,11 @@ int tzx_load(const byte *fp, int len) {
                 debug = va("%.*s", count, src);
                 src += count;
 
-                // seadragon.tzx, superwonderboy.tzx
-                if( strbegi(debug, "SIDE") || strstri(debug, "SIDE ") || !strcmp(debug,"B") || !strcmp(debug,"2") )
-                    tape_render_pause(HYPER_LARGE_PAUSE);
+                if( ids > 1 ) // ignore "Side A"s or similar at beginning of tape (See: HuntForRedOctober)
 
-                // 
-                if( strbegi(debug, "LEVEL") || strstri(debug, "LEVEL ") )
+                // seadragon.tzx, superwonderboy.tzx, etc.
+                if( strbegi(debug, "SIDE") || strstri(debug, "SIDE ") || !strcmp(debug,"B") || !strcmp(debug,"2") 
+                    || strbegi(debug, "LEVEL") || strstri(debug, "LEVEL ") )
                     tape_render_pause(HYPER_LARGE_PAUSE);
 
             break; case 0x31: // OK(0)
@@ -379,6 +379,7 @@ int tzx_load(const byte *fp, int len) {
                 src += 9;
 
 #if 1
+                if( ids > 1 )
                 tape_render_pause(HYPER_LARGE_PAUSE);
 #else
                 tape_render_stop(); //< probably a good idea
@@ -509,6 +510,8 @@ int csw_load(const byte *fp, int len) {
 #endif
 
     tape_reset();
+    tape_has_turbo = 1; // @fixme
+
     int level = !!flags;
 
     while( fp < eot ) {
@@ -525,6 +528,7 @@ int csw_load(const byte *fp, int len) {
     }
 
     tape_finish();
+
     return 1;
 }
 
@@ -533,6 +537,7 @@ int pzx_load(const byte *fp, int len) {
     if( memcmp(fp, "PZXT", 4) ) return 0;
 
     tape_reset();
+    tape_has_turbo = 1; // @fixme
 
     do {
         unsigned tag = 0[(unsigned *)fp];
@@ -562,6 +567,7 @@ int pzx_load(const byte *fp, int len) {
                     duration |= *(uint16_t*)ptr; ptr += 2; num -= 2;
                 }
 
+                tape_has_turbo |= (duration == 2168 || duration == 667 || duration == 735 ? 0 : 1);
                 tape_render_pilot(count, duration);
             }
         }
@@ -576,11 +582,15 @@ int pzx_load(const byte *fp, int len) {
             const word *s1 = (word*)ptr; ptr += p1 * 2;
             const byte *data = ptr;
 
+            tape_has_turbo |= (p0 == 2 && p1 == 2 ? 0 : 1);
+
             for( ; bits > 0; ++data )
             for( int i = 0; i < 8 && bits; ++i, --bits ) {
                 int bit = !!((*data) & (1<<(7-i)));
                 byte count = bit ? p1 : p0;
                 const word *pulses = bit ? s1 : s0;
+
+                tape_has_turbo |= (*pulses == 1710 && *pulses == 855 ? 0 : 1);
 
                 for( byte j = 0; j < count; ++j) {
                     tape_push("piLot", level ^ 1 ? LEVEL_HIGH : LEVEL_LOW, 1, pulses[j]); level ^= 1;

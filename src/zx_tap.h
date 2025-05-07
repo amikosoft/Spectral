@@ -1,4 +1,17 @@
-#define ALT_TIMINGS 0 // 1 for the wip timings
+// fixme regressions: untouchables(stop tape), tai-pan(stop tape), that's the spirit,
+
+#define has_turbo_rom() (rom_patches & TURBO_PATCH)
+#define loading_from_rom() ((PC(cpu) & 0xFF00) == 0x0500) // PC(cpu) < 0x4000; // && GET_MAPPED_ROMBANK() == GET_BASIC_ROMBANK();
+
+#define ALT_TIMINGS    0 // 1 for the wip timings
+#define PAUSE_EXTEND   (loading_from_rom() || !tape_has_turbo) //(PC(cpu) < 0x4000 && !tape_has_turbo) // 1 to extend short tape pauses (fixes mostly wrong pauses in .tap tapes)
+// would fix: coliseum.tap, JmenoRuze.tap, MoonAndThePirates.tap, doctum.tap, doctum.tzx
+// would break: hysteria, roadblasters, thefury; they break when extra pause is added
+// indirectly related: bleepload+turborom (jaws,blacklamp)
+#define PAUSE_REMOVE   (mic_count(q) >= 3000) // loading_from_rom() && !tape_has_turbo) // mic_count(q) >= 1000) // /*tape_has_turbo ? 0 : loading_from_rom()*/) //(PC(cpu) < 0x4000 && !tape_has_turbo) // 1 to remove large tape pauses (speeds up tape loading)
+// would optimize: nautilus.tzx,
+// would break: myla di'kaich, tt racer 48, moonlighter,
+// could be optimized? eg, tape_has_turbo ? count_pauses() > 8000 : loading_from_rom()
 
 enum { PILOT = 2168, DELAY_HEADER = 8063, DELAY_DATA = 3223, SYNC1 = 667, SYNC2 = 735, ZERO = 855, ONE = 1710, END_MS = 1000, COUNT_PER_MS = 3547 }; // 3500 };
 enum { LEVEL_FLIP, LEVEL_KEEP, LEVEL_LOW, LEVEL_HIGH }; // polarity
@@ -57,7 +70,7 @@ void tape_render_stop(void) {
 }
 void tape_render_pause2(unsigned pause_ms, int level) { // Used to be x1.03 for longer pauses
     // Barbarian(Melbourne), Hijack128(EDS), Italy1990(Winners), Dogfight2187, HudsonHawk
-    // pauses for decompression: JmenoRuze.tap, MoonAndThePirates.tap
+    // pauses for decompression: JmenoRuze.tap, pause command in basic: MoonAndThePirates.tap
 #if !ALT_TIMINGS
     // pause_ms *= (pause_ms == END_MS) * 1.5;
     // pause_ms *= 1.03;
@@ -121,10 +134,12 @@ void tape_reset(void) {
 }
 
 void tape_finish() {
+#if 1 // PAUSE_REMOVE
     // trim ending silences. see: abusimbelprofanation(gremlin) 16000ms nipper2(kixx) 23910ms
     for( int i = voc_len; --i >= 0; )
         if( !strchr("uo", voc[i].debug) ) break; // pa(u)se st(o)p
             else voc[i].units = 1, voc[i].debug = 'o';
+#endif
 
     // write a terminator
     tape_render_stop();
@@ -137,14 +152,16 @@ void tape_finish() {
         if( voc[i].debug == 'u' && voc[i].units > 5000 )
             voc[i].units = 5000;
 
+    // @fixme: change tape_preview[] to hold colors instead (\1,\2,...). highlight .bas programs, side Bs, glue blocks and tzx groups
     // create tape preview in 2 steps
     // 1) any kind of noise is a dotted line (==1)
     // 2) ensure silences (==0) are clearly blank over dots from step 1.
     for( int i = 0; i <= 1000; ++i ) tape_preview[i] = 1;
     for( unsigned pos = 0; pos < voc_len; ++pos ) {
         unsigned pct = pos * 1000.0 / (voc_len + !voc_len);
-        int silence = 3 * !!strchr("uo", voc[pos].debug); // pa(u)se, st(o)p
+        int silence = 2 * !!strchr("uo", voc[pos].debug) + !!strchr("l", voc[pos].debug); // 2-3 blanks for pa(u)se, st(o)p, pi(l)ots
         for( int i = 0; i < silence; ++i ) if(pct - i * (pct >= i) >= 0) tape_preview[pct - i * (pct >= i)] = 0;
+//        int specials = 2 * !!strchr("ln", voc[pos].debug); // pi(l)ot and sy(n)c tones
     }
 }
 
@@ -170,10 +187,9 @@ struct tape_block mic_read_tapeblock(int voc_pos) {
 #endif
 
     // convert normal to turbo block, if needed
-    bool has_turbo_rom = rom_patches & TURBO_PATCH;
-    bool loading_from_rom = PC(cpu) < 0x4000; // && GET_MAPPED_ROMBANK() == GET_BASIC_ROMBANK();
-    if( has_turbo_rom && loading_from_rom ) {
+    if( has_turbo_rom() && loading_from_rom() ) {
         /**/ if( q.debug == 'l' ) { // pi(l)ot
+            q.count *= 2.00; // extra count. this is only needed in standard loads if turborom is present and we're loading basic blocks like 720º or Cauldron(Silverbird) with small pauses
             IF_TURBOROM_FASTER_EDGES(q.units -= 358);          // ROMHACK $5e7 x16 faster edges (OK)
             IF_TURBOROM_FASTER_PILOTS_AND_PAUSES(q.count /= 6); // ROMHACK $571 x6 faster pilots/pauses (OK)
         }
@@ -198,21 +214,73 @@ struct tape_block mic_read_tapeblock(int voc_pos) {
     return q;
 }
 
+unsigned mic_count(struct tape_block q) { // count number of matching blocks from current tape pos
+    unsigned count = voc_pos;
+    while( count < voc_len && !memcmp(&voc[count], &q, sizeof(struct tape_block)) ) count++;
+    return count - voc_pos;
+}
+
 byte mic_read(uint64_t tstates) {
     mic_on *= voc_pos < voc_len; // stop tape at end of tape
+
+    extern uint64_t ticks;
+    int diff2 = ticks - tstates;
 
     extern uint64_t ticks; tstates = ticks;
     int diff = tstates - tape_tstate;
     tape_tstate = tstates;
 
-    if( mic_on ) { // if tape not stopped
-#if !ALT_TIMINGS
-        if( diff > 69888 && strchr("uo", q.debug) ) diff = 4;
-#else
-        if( diff > 69888 ) diff = 4; // fix games with animated intros or pauses: cauldron2.tap, EggThe, diver, doctum, coliseum.tap+turborom, barbarian(melbourne)
-#endif
-        if( diff < 0 ) diff = 0;
+    // there are tapes with much shorter pauses than needed. these games usually display a fancy animation
+    // or intro which takes a few seconds to finish, meanwhile the tape motor will progress quickly thru the
+    // current short pause block. by the time the intros are done, the tape lead could have read the next
+    // pilot and sync tones, and it may be wrongly positioned within next data tones block. the load is a failure
+    // at that point because it was never meant to be played like that. the proper way to fix this would be
+    // to edit all the wrong .tap/.tzx files on the internet. since that is insane, i guess we will do like
+    // most other emulators and playtzx tools do: try to fix pathological bad tapes with extremely short pauses.
+    // note that emulators with rom trap loading wont ever probably notice this issue at all since they
+    // are cheating by skipping the whole tape loading routines and doing a memcpy() transfer instead.
+    //
+    // * notably wrong authored tapes: Doctum.tzx, Coliseum.tap, Barbarian(melbourne) (1s pause block vs +10s intro time).
+    // - related: JmenoRuze.tap, MoonAndThePirates.tap, (not accounting for decompression or additional pauses)
+    // - related: TheEgg, Cauldron2.tap, Diver(2004) (failure depends on how much time the user takes to press a key)
+    // checkme: swords & sorcery,
+    // * beware of extending silences, these games are sensitive:
+    // - may fail during load: Hysteria, road blaster
 
+    // while we're at it, there are also games with extremely large pause blocks that could be better trimmed.
+    // many games add unnecessary large pauses in between data blocks with no user intervention at all.
+    //
+    // * beware of eating silences, these games are sensitive:
+    // - may fail at the very end: Alien8, HeadOverHeels(speedlock), Rambo(HitSquad)...
+    // - may fail during load: LoneWolf3, Jaws, Renegade(HitSquad), WTSS
+    // - may get stuck before screen$: BookOfTheDeadPart1(CRL/GDB), Cauldron2(Silverbird), ...
+
+    if( diff2 < diff ) diff = diff2;
+    if( diff < 0 ) diff = 0;
+
+    if( mic_on )
+    {
+        extern int tape_hz;
+        int been_reading = tape_hz > 300 && diff < 60;
+
+        static int been_hz;
+        been_hz = (been_hz + 1) * !!been_reading;
+
+        if( !been_reading && strchr("uo", q.debug) && PAUSE_EXTEND ) {
+            diff = 1;
+        }
+
+        else
+
+        if( been_hz > 10 && q.debug == 'u' && PAUSE_REMOVE ) {
+            int before = voc_pos;
+            while( voc_pos < voc_len && !memcmp(&voc[voc_pos], &q, sizeof(struct tape_block)) ) voc_pos++;
+            voc_pos -= 2 * (voc_pos > 1);
+            if( voc_pos < before ) voc_pos = before;
+        }
+    }
+
+    if( mic_on ) { // if tape not stopped
         // debug
         // printf("%c [%d / %d][%d / %d][%d / %d] += %d\n", voc[voc_pos].debug,voc_pos,voc_len, voc_count,q.count, voc_units,q.units, diff);
 
@@ -387,80 +455,79 @@ void tape_rewind() {
 // - http://newton.sunderland.ac.uk/~specfreak/Schemes/schemes.html
 // - https://faqwiki.zxnet.co.uk/wiki/Loading_routine_%22cores%22
 //
-// [-/+] Failures | Loader Name | Games | Total (-) 9 tape errors, (+) 9 tape errors
+// [-/+] Failures | Loader Name | Games | Total (-) 9 tape errors, (+) 9 tape errors, (!) fails, (^C) ok but fails with turborom, (?) could not test anymore
 // [ / ] _unknown_                Myla Di'Kaich
-// [ / ] _unknown_                Twister
-// [ / ] _unknown_                Zanthrax
+// [ / ] _unknown_                Twister ^C
+// [ / ] _unknown_                Zanthrax.tzx
 // [ / ] Biturbo                  Special Program, Playgames
-// [ / ] NN:Hollywood Poker       Hollywood Poker
+// [ / ] NN:Hollywood Poker     ? Hollywood Poker
 // [ / ] Odeload/UnilODE          Trivial Pursuit (HitSquad), (Erbe), ... Genus Edition Question Tape Side A, Trivial Pursuit Baby Boomer Edition Question Tape side B, Trivial Pursuit Young Players Edition Question Tape
 // [0/0] _unknown_                Falcon Patrol 2
 // [0/0] Activision               Time Scanner ^C, Pac-Land, Dynamite Dux, Ninja Spirit
 // [0/0] Alkatraz                 720, Artura, Legend of Kage, bobby bearing, Brave starr, fairlight 128k, fairlight 2 128k, hate, rolling thunder, Alien Syndrome 48 (most Kixx and US Gold releases)
-// [0/0] Alkatraz 2               Outrun Europa, Gauntlet 3, Strider 2 (US Gold) ^C
-// [0/0] BleepLoad                Black Lamp, Bubble Bobble, I,Ball; Brainstorm (Firebird), Earthlight, Flying Shark, Jaws, Kinetik, The Plot, Rick Dangerous, Soldier of Fortune, Thrust II 48, Ninja Scooter, Zolyx
+// [0/0] Alkatraz 2               Strider 2 (US Gold) ^C, Gauntlet 3, Outrun Europa
+// [0/0] BleepLoad                Black Lamp, Jaws, Sentinel 48, Bubble Bobble, I,Ball; Brainstorm (Firebird), Earthlight, Flying Shark, Kinetik, The Plot, Rick Dangerous, Soldier of Fortune, Thrust II 48, Ninja Scooter, Zolyx
 // [0/0] Busy soft                Jet-Story, Double Dash, Kliatba noci, Quadrax
 // [0/0] Cyberlode 1.1            Cauldron (Silverbird), Antiriad 48 (Silverbird)
-// [0/0] Digital Integration      ATF 48, TT Racer 48 (4 Aces), Tomahawk (4 Aces)
+// [0/0] Digital Integration  ^C  TT Racer 48 (4 Aces) ^C, ATF 48, Tomahawk (4 Aces)
 // [0/0] Dinaload                 Capitan Trueno, Grand Prix Master, Satan, Cosmic Sheriff, Freddy Hardest En Manhattan Sur, Michel Futbol Master
-// [0/0] EDOS                     Beyond Ice Palace (EDOS), Bomb Jack 2 (EDOS), Street Cred Football (EDOS)
+// [0/0] EDOS                 ^C  Beyond Ice Palace (EDOS), Bomb Jack 2 (EDOS), Street Cred Football (EDOS)
 // [0/0] Elite                    Kokotoni Wilf 48, Dukes of Hazzard 48,
 // [0/0] Excelerator              Loads of Midnight, Last Mohican, Jack the Ripper
 // [0/0] Flash Load               Dan Dare, Great Fire of London, Cliff Hanger 48, Strangeloop,
 // [0/0] FTL                      Thundercats, Supertrux
 // [0/0] Gargoyle                 Heavy on the Magick, Lightforce (Rack-It)
-// [0/0] Gremlin                  Metabolis, Monty on the Run, DeathWish3, Grumpy Gumphrey Super Sleuth, Way of the Tiger, Bounder, Jack the Nipper, Avenger, Future Knight
+// [0/0] Richlock                 Hydrofool (Rack-It), Light Force 48, Light Force (Rack-It), 
+// [0/0] Gremlin              ^C  Metabolis, Monty on the Run, DeathWish3, Grumpy Gumphrey Super Sleuth, Way of the Tiger, Bounder, Jack the Nipper, Avenger, Future Knight
 // [0/0] Gremlin 2                Basil the Mouse Detective (10 Great Games 2), Mask, Mask (10 Great Games 2)
 // [0/0] Haxpoc-Lock              Star Wars (Domark)
 // [0/0] Hyper-Loading            LaserWARp, Air Traffic Control
 // [0/0] Injectaload              Book of the Dead (CRL), Ninja Hamster, Outcast, (3D Game Maker?)
-// [0/0] Jet-Load                 Classroom Chaos, Dungeon Dare, Prelude, The Greatest Show on Earth
-// [0/0] Jon North                YS Poke Tapes
+// [0/0] Jet-Load                 Prelude ^C, Classroom Chaos, Dungeon Dare, The Greatest Show on Earth
+// [0/0] Jon North              ? YS Poke Tapes
 // [0/0] LazerLoad 48             Macadam Bumper (PSS) 48 ^C
-// [0/0] Lerm                     Lerm Microdrive 1 - Side A, Lerm Microdrive 1 - Side B, Lerm Tape Copier 6, Lerm Tape Copier 7 48
+// [0/0] Lerm                   ? Lerm Microdrive 1 - Side A, Lerm Microdrive 1 - Side B, Lerm Tape Copier 6, Lerm Tape Copier 7 48
 // [0/0] LoadA-Game               Joe Blade 2
-// [0/0] Micromega                Braxx Bluff, Kentilla 48, Jasper, A Day in the Life, Glass(BugByte),
-// [0/0] Microprose               Times of Lore, Xenophobe
+// [0/0] Micromega                Kentilla 48 ^C, Braxx Bluff, Jasper, A Day in the Life, Glass(BugByte),
+// [0/0] Microprose             * Times of Lore ^C, Xenophobe
 // [0/0] Microsphere              Skool Daze, Sky Ranger, Back to Skool
 // [0/0] Mikro-Gen                Automania, Pyjamarama, Witch's Cauldron, Everyone's a Wally, Herbert's Dummy Run, Shadow of the Unicorn, Three Weeks in Paradise (both), Battle of the Planets, Equinox, Stainless Steel, Frost Byte, Cop-Out
-// [0/0] Movieload                Moonstrike 48
+// [0/0] Movieload              * Moon Strike 48 ^C
 // [0/0] NN:Moonlighter           Moonlighter
 // [0/0] NN:Roller Coaster        Roller Coaster
-// [0/0] NN:Worldcup              World Cup Football 48
-// [0/0] Novaload 48              Swords & Sorcery 48, Covenant
-// [0/0] Nu-Load Ninety One       The Hunt for Red October
-// [0/0] ODEload                  Trivial Pursuit Genus Edition Question Tape side B, Sailing, Sailing (Mastertronic), Sailing (Mastertronic Plus)
-// [0/0] Paul Owens System        Batman the Movie, Cabal, Operation Thunderbolt, The Untouchables, Chase HQ, Rainbow Islands, Red Heat (latest Ocean games)
+// [0/0] NN:Worldcup              World Cup Football 48 ^C
+// [0/0] Novaload 48            * Swords & Sorcery 48, Covenant
+// [0/0] Nu-Load Ninety One       The Hunt for Red October(Grandslam)
+// [0/0] ODEload                  Sailing, Sailing (Mastertronic), Sailing (Mastertronic Plus), Trivial Pursuit Genus Edition Question Tape side B, 
+// [0/0] Paul Owens System        Batman the Movie, The Untouchables, Chase HQ, Rainbow Islands, Cabal, Operation Thunderbolt, Red Heat (latest Ocean games)
 // [0/0] Players 1                Xanthius, Deviants, Fernandez Must Die, Fox Fights Back, Tomcat, Street Gang, Task Force, Street Cred' Football, Spooked, Cobra Force, Prohibition, Denizen, Elven Warrior, Saigon Combat Unit, Joe Blade 3, Prison Riot
-// [0/0] Players 2                Joe Blade, Andy Capp, Tetris, Thing!, Tanium, Shanghai Karate, Metal Army, Sword Slayer, PowerPlay
+// [0/0] Players 2                Joe Blade, Metal Army ^C, Andy Capp, Tetris, Thing!, Tanium, Shanghai Karate, Sword Slayer, PowerPlay
 // [0/0] Poliload (DinamicLoader) Astro Marine Corps, Rescate Atlantida (Rescue From Atlantis)
-// [0/0] PowerLoad 48             Arena, Boulderdash, Confuzion, Deathwake, Dynamite Dan, SpyVsSpy, Tantalus
-// [0/0] Proxima Software         Orion 48, Inferno 48,
+// [0/0] PowerLoad 48             Confuzion, Death Wake, Dynamite Dan, Arena, Boulderdash, SpyVsSpy, Tantalus
+// [0/0] Proxima Software     ^C  Orion 48, Inferno 48,
 // [0/0] Rapid                    Travel With Trashman, Zombie Zombie
 // [0/0] Really-quite-fast-loader Gary Lineker's Superskills
-// [0/0] Richlock                 Light Force 48, Light Force (Rack-It), Hydrofool (Rack-It), 
 // [0/0] SearchLoader             The Final Matrix, Ranarama ^C, City Slicker
 // [0/0] Sentient                 Tai-Pan, A Question of Scruples, Guerrilla War
-// [0/0] SetoLoad                 SL-multi-test.tzx
-// [0/0] Softlock                 Chimera 48k, Rasputin 48k, Skyfox, PHM Pegasus, Elite 48k (Firebird), Cylu 48k, Impossible Mission 2
-// [0/0] Software Projects        BC's Quest for Tires 48k, Learning with Leeper
-// [0/0] Speedlock 1              Alien 8, Batman, Beach Head, Blue Max 48, Cyclone 48, Decathlon 48, Gilligan's Gold 48, Match Day 48, Mikie 48, NOMAD 48, Rambo 48, Spy Hunter 48, Yie Ar Kung Fu 48
+// [0/0] SetoLoad               ? SL-multi-test.tzx
+// [0/0] Softlock                 Elite 48k (Firebird), Rasputin 48k, Chimera 48k, Skyfox, PHM Pegasus, Cylu 48k, Impossible Mission 2
+// [0/0] Software Projects        BC's Quest for Tires 48 ^C, Learning with Leeper
+// [0/0] Speedlock 1              Batman, Alien 8, Rambo 48, Beach Head, Blue Max 48, Cyclone 48, Decathlon 48, Gilligan's Gold 48, Match Day 48, Mikie 48, NOMAD 48, Spy Hunter 48, Yie Ar Kung Fu 48
 // [0/0] Speedlock 1/2 Hybrid     Highlander
-// [0/0] Speedlock 2              Alien Highway, Enduro Racer, The Great Escape, Green Beret, Head Over Heels 128k, Tarzan, Yie Ar Kung Fu 2 48
-// [0/0] Speedlock 3              Leviathan [ENTER], Dogfight 2187, Triaxos
-// [0/0] Speedlock 4              Athena 128, Road Runner, Mutants, The Ninja Warriors, Slap Fight, Tai-Pan, Wizball
-// [0/0] Speedlock 5              Road Blasters, Action Force 2, Outrun, Hysteria, Gryzor, Phantom Club, Slaine
+// [0/0] Speedlock 2              Head Over Heels 128k, Alien Highway, Enduro Racer, The Great Escape, Green Beret, Tarzan, Yie Ar Kung Fu 2 48
+// [0/0] Speedlock 3         ^C ! Triaxos, Leviathan, Dogfight 2187
+// [0/0] Speedlock 4            ! Athena 128, Mutants, Tai-Pan, Wizball, Road Runner, The Ninja Warriors, Slap Fight,
+// [0/0] Speedlock 5              Road Blasters, Hysteria, Action Force 2, Outrun, Gryzor, Phantom Club, Slaine
 // [0/0] Speedlock 6              The Fury, Platoon (Release1), Super Hang-On (Proein), MatchDay II (TheHitSquad), Vixen
-// [0/0] Speedlock 7              The Addams Family, Arkanoid 1/2, Batman The Caped Crusader, Target Renegade, WTSS, Vindicator, Robocop2, Typhoon, Simpsons, TimeMachine (most TheHitSquad releases)
-// [0/0] Speedlock 8 ?            Robocop 3
+// [0/0] Speedlock 7              The Addams Family, Arkanoid 2/1, Batman The Caped Crusader, Target Renegade, WTSS, Vindicator, Robocop2, Typhoon, Simpsons, TimeMachine (most TheHitSquad releases)
+// [0/0] Speedlock 8?             Robocop 3
 // [0/0] Speedlock Associates     Dan Dare 2
 // [0/0] Sprite Novaload          Theatre Europe
-// [0/0] The Edge                 Starbike, That's the Spirit, Psytraxx, Brian Bloodaxe
-// [0/0] Uniloader                Batty ^C, IkariWarriors ^C, Bomb Jack 2
+// [0/0] The Edge                 Starbike ^C, That's the Spirit, Psytraxx, Brian Bloodaxe
+// [0/0] Uniloader                Batty, IkariWarriors ^C, Bomb Jack 2
 // [0/0] ZetaLoad                 Wec Le Mans (Imagine) [1]
 // [0/0] Zydroload                The Light Corridor, North & South, Magic Johnson,
 // [0/0] Multiload                Blood Brothers, Deflektor, 
-// []                             Donkey Kong (Erbe), Bazooka Bill (Erbe/IBSA), Cobra (Erbe/IBSA), Conquestador (Erbe), 
 // [] Elite                       Bomb Jack, Commando,
 // [] Animagic                    Bronx, Cyberbig, Mortadelo y Filemon 2,
 // [] Audiogenic                  Lone Wolf: Mirror of Death,
@@ -474,9 +541,11 @@ void tape_rewind() {
 // [] CEZ team                    Cannon Bubble,
 // [] Busy Soft                   Cesta Bojovnika,
 // [0/0] Choice ?                 Tank, Beach Volley (ERBE),
-// [] ERBE                        Conquestador,
+// [] ERBE                  ^C    Conquestador,
+// []                             Donkey Kong (Erbe), Bazooka Bill (Erbe/IBSA), Cobra (Erbe/IBSA), Conquestador (Erbe), 
 // [] The Sales Curve             St Dragon, Continental Circus,
 // [] Mirrorsoft                  Mean Streak,
+// [] Customs                     Abadia del Crimen
 // [] Customs                     Crusader, Cyborg Terminator 2, Darius+, DarkSide, Forbidden Planet, Freddy Hardest, Frontiers, FullThrottle, Gary Lineker's Superskills, Gimme Bright, 
 // Academy(Pim), action reflex, airbone ranger, amazing rocketeer,
 // ano gaia, apb. apulija13, archon, aspar, basil, bad dream (proxima),
@@ -487,7 +556,7 @@ void tape_rewind() {
 // Night Hunter, Koronis Rift, La Balada del Duende 48, Loco, Wonderboy, Wrestle Crazy, Boovie, Ninja Grannies, 
 // RocknRoll (Rainbow Arts), Rommels Revenge, R-Type, Barry McGuigan Championship Boxing, Aliens (eds)[a2],
 // Camel Trophy 86, Double Dragon (DroSoft), Dustin (MediumCase), Eliminator (PlayersSoftware), Days of Thunder, 
-// Dragons Of Flame (Kixx), Cobra's Arc,
+// Dragons Of Flame (Kixx), Cobra's Arc, Welcome To Hollywood
 // [] Custom (square)             Defender of the Crown, Rocky Horror Show, BMX Ninja, Room Ten, Aftermath, Defender of the Crown (different), Cybex, Bugsy,
 // [] CRL                         Doctor What, Jack The Ripper,
 // [] Durell                      Saboteur

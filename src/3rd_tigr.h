@@ -2092,7 +2092,7 @@ static void scan(Tigr* bmp, int* x, int* y, int* rowh) {
  * starting at x, y. The first and last alpha values contain the magic values
  * 0b10101010 and 0b01010101 respectively.
  */
-static int readWatermark(Tigr* bmp, int x, int y, int* big, int* small) {
+static int readWatermark(Tigr* bmp, int x, int y, int* Big, int* Small) {
     const int magicHeader = 0xAA;
     const int magicFooter = 0x55;
 
@@ -2107,8 +2107,8 @@ static int readWatermark(Tigr* bmp, int x, int y, int* big, int* small) {
         return 0;
     }
 
-    *big = watermark[1] | (watermark[2] << 8) | (watermark[3] << 16) | (watermark[4] << 24);
-    *small = watermark[5];
+    *Big = watermark[1] | (watermark[2] << 8) | (watermark[3] << 16) | (watermark[4] << 24);
+    *Small = watermark[5];
 
     return 1;
 }
@@ -2524,8 +2524,10 @@ void tigrUpdate(Tigr* bmp) {
     dw = rc.right - rc.left;
     dh = rc.bottom - rc.top;
 
+#if 0 //< @r-lyeh: TIGR_HAS_FULLSCREEN_WIDGETS?
     // Update the widget overlay.
     tigrWinUpdateWidgets(bmp, dw, dh);
+#endif
 
     if (!tigrGAPIBegin(bmp)) {
         tigrGAPIPresent(bmp, dw, dh);
@@ -2572,6 +2574,34 @@ static BOOL UnadjustWindowRectEx(LPRECT prc, DWORD dwStyle, BOOL fMenu, DWORD dw
         prc->bottom -= rc.bottom;
     }
     return fRc;
+}
+
+// see: https://stackoverflow.com/a/15977613/29974725
+static
+WPARAM MapLeftRightKeys( WPARAM vk, LPARAM lParam)
+{
+    WPARAM new_vk = vk;
+    UINT scancode = (lParam & 0x00ff0000) >> 16;
+    int extended  = (lParam & 0x01000000) != 0;
+
+    switch (vk) {
+    case VK_SHIFT:
+        new_vk = MapVirtualKey(scancode, MAPVK_VSC_TO_VK_EX);
+        break;
+    case VK_CONTROL:
+        new_vk = extended ? VK_RCONTROL : VK_LCONTROL;
+        break;
+    case VK_MENU:
+        new_vk = extended ? VK_RMENU : VK_LMENU;
+        break;
+    default:
+        // not a key we map from generic to left/right specialized
+        //  just return it.
+        new_vk = vk;
+        break;
+    }
+
+    return new_vk;
 }
 
 LRESULT CALLBACK tigrWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -2741,12 +2771,14 @@ LRESULT CALLBACK tigrWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         case WM_KEYDOWN:
             if (win)
                 win->keys[wParam] = 1;
+            if( win ) win->keys[MapLeftRightKeys(wParam, lParam)] = 1; //< @r-lyeh
             return DefWindowProcW(hWnd, message, wParam, lParam);
         case WM_SYSKEYUP:
             // fall-thru
         case WM_KEYUP:
             if (win)
                 win->keys[wParam] = 0;
+            if( win ) win->keys[MapLeftRightKeys(wParam, lParam)] = 0; //< @r-lyeh
             return DefWindowProcW(hWnd, message, wParam, lParam);
         case WM_MOUSEWHEEL:
             if (win)
@@ -2817,8 +2849,25 @@ Tigr* tigrWindow(int w, int h, const char* title, int flags) {
     if (!hWnd)
         ExitProcess(1);
 
+#if 1 //< @r-lyeh center window
+    if( !(flags & TIGR_FULLSCREEN) )
+    {
+        // Get the window dimensions
+        RECT rect;
+        GetWindowRect(hWnd, &rect);
+
+        // Calculate the centered position
+        int xPos = (GetSystemMetrics(SM_CXSCREEN) - (rect.right - rect.left)) / 2;
+        int yPos = (GetSystemMetrics(SM_CYSCREEN) - (rect.bottom - rect.top)) / 2;
+
+        // Move the window to the center
+        SetWindowPos(hWnd, NULL, xPos, yPos, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+    }
+#endif
+
 #if 1 //< @r-lyeh dark mode
     {
+    #if 0
         DWORD light_mode = 0;
         DWORD light_mode_size = sizeof(light_mode);
 
@@ -2831,6 +2880,36 @@ Tigr* tigrWindow(int w, int h, const char* title, int flags) {
             DwmSetWindowAttribute(hWnd, DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp));
             BOOL enabled = light_mode == 0;
             DwmSetWindowAttribute(hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &enabled, sizeof(enabled));
+        }
+    #endif
+
+        {
+            DWORD light_mode1 = 0;
+            DWORD light_mode1_size = sizeof(light_mode1);
+            LSTATUS result1 = RegGetValueW(HKEY_CURRENT_USER,
+                L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", L"AppsUseLightTheme",
+                RRF_RT_REG_DWORD, NULL, &light_mode1, &light_mode1_size);
+
+            DWORD light_mode2 = 0;
+            DWORD light_mode2_size = sizeof(light_mode2);
+            LSTATUS result2 = RegGetValueW(HKEY_CURRENT_USER,
+                L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", L"SystemUsesLightTheme",
+                RRF_RT_REG_DWORD, NULL, &light_mode2, &light_mode2_size);
+
+            if( result1 == ERROR_SUCCESS || result2 == ERROR_SUCCESS ) {
+                BOOL enabled = (light_mode1 == 0 || light_mode2 == 0);
+                if( 0 && enabled ) {
+                    enum DWMNCRENDERINGPOLICY ncrp = DWMNCRP_ENABLED;
+                    DwmSetWindowAttribute(hWnd, DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp));
+
+                    BOOL USE_DARK_MODE = true;
+                    BOOL SET_IMMERSIVE_DARK_MODE_SUCCESS = SUCCEEDED(DwmSetWindowAttribute(
+                        hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &USE_DARK_MODE, sizeof(USE_DARK_MODE)));
+
+                    //ShowWindow(hWnd, SW_HIDE);
+                    //ShowWindow(hWnd, SW_SHOW);
+                }
+            }
         }
     }
 #endif
@@ -3165,9 +3244,9 @@ int tigrKeyDown(Tigr* bmp, int key) {
 
 int tigrKeyUp(Tigr* bmp, int key) { //< @r-lyeh
     TigrInternal* win;
-    int k = tigrWinVK(key);
     if (GetFocus() != bmp->handle)
         return 0;
+    int k = tigrWinVK(key);
     win = tigrInternal(bmp);
     return !win->keys[k] && win->prev[k];
 }
@@ -3183,6 +3262,8 @@ int tigrKeyHeld(Tigr* bmp, int key) {
 
 int tigrReadChar(Tigr* bmp) {
     TigrInternal* win = tigrInternal(bmp);
+    if (GetFocus() != bmp->handle) //< @r-lyeh
+        return 0; 
     int c = win->lastChar;
     win->lastChar = 0;
     return c;

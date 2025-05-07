@@ -68,6 +68,7 @@ struct aydata_tag {
 } aydata;
 
 void play_track(unsigned track) {
+
     #define WORD16(x) ( 0[x] << 8 | 1[x] )
 
     int init = WORD16(aydata.tracks[track].data_stacketc+2);
@@ -78,7 +79,9 @@ void play_track(unsigned track) {
     // n) Disable Z80 interrupts and set IM0 mode
     // o) Emulate resetting of AY chip
     // p) Start Z80 emulation
-    reset(128);
+    // alert(va("playing track #%d", track));
+    boot(128, 1); // [1]=KEEP_MEDIA, so it does not wipe ZXDB
+    extern int mic_on; mic_on = 0; // stop tape, do not show tape preview
     port_0x00fe(0); // black border
     /*
     page128 &= ~32;
