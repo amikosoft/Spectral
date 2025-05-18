@@ -148,7 +148,7 @@ int sna_load(const byte *src, int size) {
 
 #if 0
         // amend some games that rely on AY, which cannot be not saved in .sna format
-        // see: tai-pan 128k (title screen)
+        // see: tai-pan 128k (title screen). probably matchday2 (0x5E), Tank, and other speedlock games.
         if(1) ay_registers[7] = 0x00b8;
         if(1) ay_registers[15] = 0x00e5;
 #endif
@@ -564,19 +564,63 @@ int szx_load(const byte *src, int len) {
 #define DISK_SECTOR_SIZE 256
 #define DISK_CATALOG_OFFSET 0x2000
 #define DISK_MAX_FILES 128
+#define DISK_MAX_SECTORS 2544 // Max sectors for a 640 KB disk
 
-// Check if data is TRD (TR-DOS disk image)
+// Check if a string is a valid TR-DOS filename (printable ASCII or spaces)
+int is_valid_trd_filename(const unsigned char *name) {
+    for (int i = 0; i < 8; i++) {
+        if (name[i] != 0x20 && (name[i] < 0x20 || name[i] > 0x7F)) {
+            return 0; // Not a printable ASCII character or space
+        }
+    }
+    return 1;
+}
+
+// Check if data is TRD (TR-DOS disk image) by scanning file entries
 int is_trd(const unsigned char *data, size_t size) {
-    if (size < DISK_CATALOG_OFFSET + DISK_SECTOR_SIZE) return 0;
+    // Minimum size to check file entries (at least one sector)
+    if (size < DISK_SECTOR_SIZE) return 0;
+
+    // Scan sectors 0-7 (0x0000-0x1FFF) for file entries
+    int found_valid_entry = 0;
+    for (size_t offset = 0; offset < 0x2000 && offset < size; offset += 16) {
+        const unsigned char *entry = data + offset;
+        
+        // Check filename (bytes 0-7)
+        if (!is_valid_trd_filename(entry)) continue;
+        
+        // Check file type (byte 8: 'B', 'C', 'D', '#', etc.)
+        unsigned char file_type = entry[8];
+        if (file_type != 'B' && file_type != 'C' && file_type != 'D' && file_type != '#') continue;
+        
+        // Check length (bytes 9-10)
+        unsigned short length = entry[9] | (entry[10] << 8);
+        if (length == 0) continue; // Length must be non-zero
+        
+        // Check sector and track (bytes 13-14)
+        unsigned char sector = entry[13];
+        unsigned char track = entry[14];
+        if (sector > 15 || track > 79) continue; // Invalid sector/track
+        
+        found_valid_entry = 1;
+        break; // Found at least one valid entry
+    }
     
-    const unsigned char *catalog = data + DISK_CATALOG_OFFSET;
-    unsigned char disk_type = catalog[8];
-    unsigned char num_files = catalog[9];
-    unsigned short free_sectors = catalog[10] | (catalog[11] << 8);
-    
-    return (disk_type == 0x16 || disk_type == 0x17) && 
-           num_files <= DISK_MAX_FILES && 
-           free_sectors <= 2544;
+    if (found_valid_entry) return 1;
+
+    // Fallback: Check catalog at 0x2000 if present (optional)
+    if (size >= DISK_CATALOG_OFFSET + DISK_SECTOR_SIZE) {
+        const unsigned char *catalog = data + DISK_CATALOG_OFFSET;
+        unsigned char disk_type = catalog[8];
+        unsigned char num_files = catalog[9];
+        unsigned short free_sectors = catalog[10] | (catalog[11] << 8);
+        
+        // Relaxed check: Accept any non-zero disk_type and cap free_sectors
+        if (disk_type != 0 && num_files <= DISK_MAX_FILES && free_sectors <= DISK_MAX_SECTORS * 2) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 // Check if data is SCL (Simplified TR-DOS image)
@@ -675,8 +719,8 @@ int guess_v1(const byte *ptr, int size) { // guess required model type for given
     // headerless fixed-size formats now, sorted by ascending file size.
     if( size == 6912 ) return 48;
     if( size == 49179 ) return 48;
-    if( size == 131103 ) return 128; // @fixme: infer ZX_PENTAGON from .sna
-    if( size == 147487 ) return 128; // @fixme: infer ZX_PENTAGON from .sna
+    if( size == 131103 ) return 128|ZX_PENTAGON; // @fixme: force ZX_PENTAGON for .sna?
+    if( size == 147487 ) return 128|ZX_PENTAGON; // @fixme: force ZX_PENTAGON for .sna?
 
     // @fixme: trd/scl/fdi/mgt headers to parse?
     // at this point file is too large to be a snapshot. must be a disk instead (trd,scl,fdi,mgt,etc)

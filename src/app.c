@@ -6,29 +6,32 @@
 // gcc app.c -o Spectral -O3 -DNDEBUG=3 -Wno-unused-result -Wno-format -Wno-multichar -lm -ldl -lX11 -lGL -lasound -lpthread
 //
 // # done
-// cpu, ula, mem, rom, 48/128, key, joy, ula+, tap, ay, beep, sna/128, fps, tzx, if2, zip, rf, menu, kms, z80, scr,
+// cpu, ula, mem, rom, 48/128, key, joy, ula+, tap, ay/ym, beep, sna/128, fps, tzx, if2, zip, rf, menu, kms, z80, scr,
 // key2/3, +2a/+3, fdc, dsk, autotape, gui, KL modes, load "" code, +3 fdc sounds, +3 speedlock, issue 2/3,
 // pentagon, trdos, trdos (boot), translate game menus, 25/30/50/60 hz, game2exe,
 // zxdb, custom tiny zxdb fmt, embedded zxdb, zxdb cache, zxdb download on demand, zxdb gallery
 // ay player, pzx, rzx (wip), redefineable FN keys, mpg recording, mp4 recording, nmi, zx palettes,
 // gamepads, gamepad bindings, turbosound (turboAY), autofire, alt z80 rates, media selector,
 // border effects, border overscan, rainbow graphics, multicolor, HAL10H8 bugs, zoom x1..x4,
-// lenslok, resizeable, ultrawide ula, host keyboard,
+// lenslok, resizeable, ultrawide ula, host keyboard, custom shaders, screenmate, tape counter,
+// stereo ABC/ACB,
 // glue sequential tzx/taps in zips (side A) -> side 1 etc)
 // sequential tzx/taps/dsks do not reset model
 // scan folder if dropped or supplied via cmdline
 
 // @todo:
-// [ ] autoload.dsk: rex, after the war re-imagined
+// [ ] audio filters
+// [ ] read mags: concatenate all pags, and invoke external pdf viewer since our window resolution forbids reading hq text
+// [ ] phantom typist for autoload.dsk: rex, after the war re-imagined
 // [ ] pok: mask menu + undo
 // [ ] zx: multiface1, multiface128/genie128, multiface3
 // [ ] autofps: exolon/alien8 @ 50fps
 // [x] overlay: optimize: clear & redraw only if mouse == mouse_prev
-// [ ] snow: Robocop 3, iLogicAll, Fantasy World Dizzy, Astro Marine Corps, Vectron...
+// [ ] snow: Robocop 3, iLogicAll, Fantasy World Dizzy, Astro Marine Corps, Vectron... https://spectrumcomputing.co.uk/forums/viewtopic.php?p=114970&sid=54c80b833347da3e9f5398d4e9e0a0c5#p114970
 // [ ] coop: ghost mode (single player vs ghost) time-based games: outrun, enduro
 // [ ] disasm: breakpoint on a source code expression with wildcards. ie, break on "HALT\n*\nJ*\n"
 // [ ] beeper: 10khz @dmitryurbanovich4748 "The music sounds harsh only because it was never supposed to be played at such high fidelity. It was expected to be played through low-cost amplifier and a speaker, which can't produce anything above 10kHz. Also, since it is only "full on" and "off", it caused all sorts of subtle distortion in the amplifier, so it actually sounded quite warm and pleasant (in comparison to what we hear in your video)."
-// [ ] media: load romtrap
+// [ ] media: load romtrap $559
 // [ ] media: push/pop zx state for thumbnails and miniatures
 // [x] zxdb: emit warning on failed game downloads. or, do not proceed into boot() at least
 // [ ] tape buttons
@@ -56,22 +59,29 @@
 
 // @fixme:
 // [ ] zxdb: afterburner/arkanoid: cheats
-// [ ] ui_print(): dims not very accurate when ui_monospaced==0. see chasehq2 instructions boundings
+// [x] ui_print(): dims not very accurate when ui_monospaced==0. see chasehq2 instructions boundings
 // [ ] mp3: @leak
 // [ ] .sav: mask3.sav, cybernoid2.sav, jack2.sav
 // [ ] .sav: 2bits off for tapes? (close the app while attribs for cauldron2 screen$ are dumped. restart the emulator; tape_ticks/ticks?)
-// [ ] DEV wont fix: emit beep during .tzx debugprints to console - Twister(zxdb), LaAbadiaDelCrimen (turbo), AndyCapp(zxdb)
+// [x] DEV remove beep during .tzx debugprints to console - Twister(zxdb), LaAbadiaDelCrimen (turbo), AndyCapp(zxdb)
 
 // @fixme
+// [ ] el cartero > Libreria_de_Software_Spectrum_issue_12 > B-4
+// [ ] contention+pzx: lonewolf128k.pzx
+// [ ] flashing console window while opening https links (windows, release builds), probably recording too (popen)
+// [ ] load snowhold.tap, somehow I==0x40 can last after reset/app restart
+// [ ] dsk sideB : spaceharrier2 and myth cases
+// [ ] tzx sideB : alien syndrome (Dro), alien syndrome (RAD)
 // [x] turborom + bleepload (sentinel, sidewize, crosswize, jaws)
+// [ ] pzx/csw/gdb + turborom
+// [ ] TTRacer WITHOUT turborom
 // [ ] combatschool.ay
+// [ ] robocop.ay + oscilloscopes in AY2 mode. space harrier 2 is fine (??)
 // [x] too much audio latency?
 // [ ] p128 bottom line (128 menu)
 // [ ] lower bottom megashock/
 // [x] 48irons.trd
-// [ ] TTRacer WITHOUT turborom
-// [ ] p128 .sna
-// [ ] pzx/csw/gdb + turborom
+// [x] p128 .sna
 // [x] KLmode broken
 // [ ] linux polyfill (does not work yet)
 // [ ] contention: gauntlet3.dsk
@@ -203,7 +213,7 @@
 // [ ] XL1 (Compilation)
 #endif
 
-#define SPECTRAL "v1.10"
+#define SPECTRAL "v1.11"
 
 #if NDEBUG >= 2
 #define DEV 0
@@ -454,9 +464,16 @@ int app_create(const char *title, int fs, int zoom) {
         // force change view
         if(app) tigrFree(app);          app = tigrWindow(_256, _192, title, window_flags(fs, zoom));  // _32+256+_32, (_24+192+_24),
 
-        // postfx. @fixme: reload user shader too
-        crt(ZX_CRT);
+        // postfx. reloads user shader too
+        #if 0
+        if( ZX_SHADER && ZX_SHADER[0] )
+            if( !load_shader( ZX_SHADER ) )
+                free(ZX_SHADER), ZX_SHADER = 0, ZX_SHADED = 0;
+        #endif
 
+        crt(ZX_SHADED ? shader : ZX_CRT ? shader_spectral : shader_tigr);
+
+        //
         app_resize();
     }
 
@@ -597,7 +614,7 @@ const char *commands[] = {
     "",
     "TURB:Toggle TurboROM\n0:off, 1:TurboROM .tap loader",
     "▒",
-    "  TV:Toggle TV mode\n0:off, 1:rf, 2:crt, 3:rf+crt",
+    "  TV:Toggle TV mode\n0:off, 1:crt, 2:rf, 3:rf+crt",
     "U",
     " ULA:Toggle ULAplus\n0:off, 1:on, 2:on+ultrawide",
     "",
@@ -739,6 +756,10 @@ void input() {
                         if(keys['0'+i]) ZXKey(ZX_SHIFT), ZXKey(ZX_0+i), number = 1;
                     if( !number ) { ZXKey(ZX_SYMB); KEYS(K); }
                 }
+                else 
+                if( pad ) {
+                    KEYS(K); // for gamepads
+                }
             }
             // regular chars
             if( chr ) for( const char *sym = "0123456789abcdefghijklmnopqrstuvwxyz \n", *peek = strchr(sym, chr); peek; peek = 0, chr = 0) {
@@ -823,7 +844,8 @@ void help() {
 
 void titlebar(const char *filename) {
     filename = filename ? filename : "";
-    const char *basename = strrchr(filename, *DIR_SEP_); basename += !!basename;
+    const char *basename = strrchr(filename, '/'); basename += !!basename;
+    const char *basename_= strrchr(filename,'\\'); basename_+= !!basename_; if(basename_ > basename) basename = basename_;
     const char *title = basename ? basename : filename;
     const char *models[] = { [1]="16",[3]="48",[8]="128",[9]="P128",[12]="+2",[13]="+2A",[18]="+3" };
     const char *titlebar = ZX_PLAYER ? __argv[0] : va("Spectral%s %s%s%s", DEV ? " DEV" : "", models[(ZX/16)|ZX_PENTAGON], title[0] ? " - " : "", title);
@@ -1141,21 +1163,23 @@ void draw_ui() {
             ui_dialog_option(1,( ZX_FULLSCREEN)+"\5Windowed\n",NULL,'FULL',"0");
         }
 
-        if( ui_click(rmb_held*19+"- Toggle TV mode -\0- Toggle TV mode -\n0:off, 1:rf, 2:crt, 3:crt+rf", "▒\f%d", (ZX_CRT << 1 | ZX_RF)) ) if(rmb_up) cmdkey = 'TV'; else
+        if( ui_click(rmb_held*19+"- Toggle TV mode -\0- Toggle TV mode -\n0:off, 1:crt, 2:rf, 3:rf+crt, 4:ext", "▒\f%d", ZX_SHADED ? 4 : (ZX_RF << 1 | ZX_CRT)) ) if(rmb_up) cmdkey = 'TV'; else
         {
-            int mode = (ZX_CRT << 1 | ZX_RF);
+            int mode = ZX_SHADED ? 4 : (ZX_RF << 1 | ZX_CRT);
             ui_dialog_new("- Toggle TV mode -");
-            ui_dialog_option(1,(mode!=3)+"\5<CRT and RF (extra CPU cost)\n",NULL,'TV',"3");
-            ui_dialog_option(1,(mode!=2)+"\5<CRT only\n",NULL,'TV',"2");
-            ui_dialog_option(1,(mode!=1)+"\5<RF only (extra CPU cost)\n",NULL,'TV',"1");
+            if(ZX_SHADER && ZX_SHADER[0])
+            ui_dialog_option(1,(mode!=4)+"\5<External custom shader\n",NULL,'TV',"4");
+            ui_dialog_option(1,(mode!=3)+"\5<RF and CRT (extra CPU cost)\n",NULL,'TV',"3");
+            ui_dialog_option(1,(mode!=2)+"\5<RF only (extra CPU cost)\n",NULL,'TV',"2");
+            ui_dialog_option(1,(mode!=1)+"\5<CRT only\n",NULL,'TV',"1");
             ui_dialog_option(1,(mode!=0)+"\5<Crisp\n",NULL,'TV',"0");
         }
         ui_x += 8;
-        if( ui_click(rmb_held*19+"- Toggle Palette -\0- Toggle Palette -\n0:Spectral, X:others", "\f%d\n", ZX_PALETTE) ) if(rmb_up) cmdkey = 'PAL'; else
+        if( ui_click(rmb_held*19+"- Toggle Palette -\0- Toggle Palette -\n0:Spectral, X:others", "\f%1x\n", ZX_PALETTE) ) if(rmb_up) cmdkey = 'PAL'; else
         {
             ui_dialog_new("- Toggle Palette -");
             for( int i = 0; i < countof(ZXPaletteNames); ++i)
-            ui_dialog_option(1,va((ZX_PALETTE!=i)+"\005%s\n",ZXPaletteNames[i]+1),NULL,'PAL',va("%d",i));
+            ui_dialog_option(1,va((ZX_PALETTE!=i)+"\005%s\n",ZXPaletteNames[i]+2),NULL,'PAL',va("%d",i));
         }
 
         if( ui_click(rmb_held*19+"- Toggle AY core -\0- Toggle AY core -\n0:off, 1:fast, 2:accurate", /*𝄞*/"♬\f%d",ZX_AY) ) if(rmb_up) cmdkey = 'AY'; else
@@ -1189,7 +1213,7 @@ void draw_ui() {
             cmdkey = 'JOY0';
         }
         ui_x += 8;
-        if( ui_click("- Gamepad bindings -", "\f0\n") ) // if(rmb_up) cmdkey = 'PAD0'; else
+        if( ui_click("- Gamepad bindings -", "\f%d\n", ZX_HORACE) ) if(rmb_up) cmdkey = 'HOR1'; else
         {
             cmdkey = 'PAD0';
         }
@@ -1297,17 +1321,85 @@ void draw_ui() {
     }
 #endif
 
+    // tape counter & controls
+    if(!browser && !do_overlay && tape_inserted() && tape_tellf() <= 1. && mic_on ) {
+        // tape controls
+        int tapex = _320/2-(8+1)*1.5;
+        int tapey = _240*13/14;
+        if( (ui_at(ui,tapex-8*2,tapey), ui_click(NULL, tape_playing() ? "■" : PLAY_STR)) )
+            cmdkey = tape_playing() ? 'STOP' : 'PLAY';
+            //if( ui_click(NULL, "\xf\b\b\b\xf") ) cmdkey = 'PREV';
+            //if( ui_click(NULL, "%c\b\b\b%c", PLAY_CHR, PLAY_CHR) ) cmdkey = 'NEXT';
+            //if( ui_click(NULL, "%d", autoplay)) ZX_AUTOPLAY ^= 1;
+            //if( ui_click(NULL, "%d", autostop)) ZX_AUTOSTOP ^= 1;
+        // tape counter
+        {
+            // animates count to zero once clicked
+            static int tape_anim = 0, tape_target;
+            if( tape_anim > 0 )
+                tape_counter = --tape_anim > 0 ? tape_target * 0.5 + tape_counter * 0.5 : tape_target;
+
+            // scale down so it advances a digit per second at 50hz approx. handle negatives too
+            const double _1e3 = 2.8875*1e3;
+            double counter = (voc_pos - tape_counter) / _1e3;
+            if( counter < 0 ) counter += 1000;
+            counter = fmodf(counter, 1000);
+
+            // print each digit separately in two rows, with vertical scroll
+            int click = 0;
+            ui_at(ui,tapex,tapey);
+            for( int place = 100; place > 0; place /= 10 ) {
+                int digit = ((int)counter / place) % 10;
+                float frac = ((int)(counter * 10)) % 10;
+                if( place >=  10 ) if( (((int)counter / (place/ 10)) % 10) != 9 ) frac = 0;
+                if( place >= 100 ) if( (((int)counter / (place/100)) % 10) != 9 ) frac = 0;
+                int offset = (8-1) * (frac/9.);
+#if 0
+                ui_y += offset;
+                if( ui_y -= 8, ui_monospaced = 1, ui_allow_links = 0, ui_button(NULL, va("%d\f", (1+digit) % 10)) ) click |= ui_click;
+                if( ui_x -= 8, ui_y += 8, ui_monospaced = 1, ui_allow_links = 0, ui_button(NULL, va("%d\f", digit)) ) click |= ui_click;
+                ui_y -= offset;
+#else
+                ui_y -= offset;
+                if( ui_y += 8, ui_monospaced = 1, ui_allow_links = 0, ui_button(NULL, va("%d\f", (1+digit) % 10)) ) ; // click |= ui_click;
+                if( ui_x -= 8, ui_y -= 8, ui_monospaced = 1, ui_allow_links = 0, ui_button(NULL, va("%d\f", digit)) ) click |= ui_click;
+                ui_y += offset;
+#endif
+            }
+            // clear upper and bottom rows
+            int width = ui_x - tapex;
+            TPixel *p = &ui->pix[ui_x-width+tapey*_320];
+            TPixel *q = p + 8 * _320;
+            for( int y = 0; y < 8; ++y)
+                memset32(p + (y-8)*_320, 0, width),
+                memset32(p + (y+8)*_320, 0, width);
+            // draw shadow
+            for( int x = 0; x < width; ++x )
+                if( p[x+7*_320].rgba == ui_ff.rgba ) p[x+1+8*_320].rgba = ui_00.rgba;
+            // draw hover link
+            if( mouse().x >= tapex && mouse().x < ui_x )
+            if( mouse().y >= tapey && mouse().y < (tapey+8) ) {
+                mouse_cursor(2),
+                memset32(q, ui_ff.rgba, width),
+                memset32(q+1+1*_320, ui_00.rgba, width);
+                // trigger reset animation. adjust target so it displays one third of 999 digits purposedly
+                if( mouse().lb )
+                    tape_anim = 50, tape_target = voc_pos + 0.666 * _1e3;
+            }
+        }
+    }
+
     // bottom slider: tape browser. @todo: rewrite this into a RZX player/recorder too
     #define MOUSE_HOVERED_X() (m.x >= TOFF && m.x < (TOFF+_320))
-    #define MOUSE_HOVERED_Y() (m.y >= (_240-11-11*(m.x<_320*5/6)) && m.y < (_240+11) ) // m.y > 0 && m.y < 11 
+    #define MOUSE_HOVERED_Y() (m.y >= (_240-6-2*(m.x<_320*5/6)) && m.y < (_240+11) ) // m.y > 0 && m.y < 11 
     #define MOUSE_ACTION(pct) tape_seekf(pct)
     #define BAR_Y()           (_240-REMAP(smoothY,0,1,-7,7)) // REMAP(smoothY,0,1,-10,UI_LINE1)
     #define BAR_PROGRESS()    tape_tellf()
     #define BAR_VISIBLE()     ( !tape_inserted() ? 0 : (MOUSE_HOVERED_Y() || BAR_PROGRESS() <= 1. && mic_on/*tape_playing()*/) ) // (m.y > -10 && m.y < _240/10) )
-    #define BAR_FILLING(...)  for(int pct = (int)((x)*1000.0/(T320+!T320)), *e = &pct; e; e = 0) if( (x&1) && tape_preview[pct] ) { __VA_ARGS__; }
+    #define BAR_FILLING(T,...) for(int pct = (int)((x)*1000.0/(T320+!T320)), *e = &pct; e; e = 0) for( unsigned color = ZXPalettes[0][tape_preview[pct]]; color; color = 0 ) if( (x&1) && tape_preview[pct] ) { T; } else { __VA_ARGS__; }
 
     // bottom slider: tape browser
-    const int TOFF = _320/36, T320 = _320 - TOFF;
+    const int TOFF = 0/*_32/10*/, T320 = _320 - TOFF * 2;
     int visible = !browser && !do_overlay && BAR_VISIBLE();
     static float smoothY; do_once smoothY = visible;
     smoothY = smoothY * 0.75 + visible * 0.25;
@@ -1320,14 +1412,6 @@ void draw_ui() {
         if( ZX_CRT && (y > _240/2) ) // scanline correction to circumvent CRT edge distortion
             bar -= _320 * 2;
 
-        // manual tape controls
-        if( (ui_at(ui,TOFF/2-8/2,y-2), ui_click(NULL, tape_playing() ? "■" : PLAY_STR)) )
-            cmdkey = tape_playing() ? 'STOP' : 'PLAY';
-            //if( ui_click(NULL, "\xf\b\b\b\xf") ) cmdkey = 'PREV';
-            //if( ui_click(NULL, "%c\b\b\b%c", PLAY_CHR, PLAY_CHR) ) cmdkey = 'NEXT';
-            //if( ui_click(NULL, "%d", autoplay)) ZX_AUTOPLAY ^= 1;
-            //if( ui_click(NULL, "%d", autostop)) ZX_AUTOSTOP ^= 1;
-
         unsigned mark = BAR_PROGRESS() * T320;
         if( y < (_240/2) ) {
             // bars & progress (top)
@@ -1335,22 +1419,46 @@ void draw_ui() {
             if(y>=-2) for( int x = 0; x < T320; ++x ) bar[x+2*_320] = white;
             if(y>= 1) for( int x = 0; x<=mark; ++x )  bar[x+_320] = white;
             if(y>=-2) for( int x = 1; x<=mark; ++x )  bar[-1+2*_320] = black;
-            if(y>=-1) for( int x = 0; x < T320; ++x ) BAR_FILLING(bar[x+1*_320] = white);
+            if(y>=-1) for( int x = 0; x < T320; ++x ) BAR_FILLING(bar[x+1*_320] = ((TPixel){.rgba = color}) /*white*/);
             // triangle marker (top)
             if(y>=-4) bar[mark+4*_320] = white;
             if(y>=-5) for(int i = -1; i <= +1; ++i) if((mark+i)>=0 && (mark+i)<_320) bar[mark+i+5*_320] = white;
             if(y>=-6) for(int i = -2; i <= +2; ++i) if((mark+i)>=0 && (mark+i)<_320) bar[mark+i+6*_320] = white;
         } else {
             // triangle marker (bottom)
+++y; bar += _320;
             if(y<=_239-0) for(int i = -2; i <= +2; ++i) if((mark+i)>=0 && (mark+i)<_320) bar[mark+i+0*_320] = white;
             if(y<=_239-1) for(int i = -1; i <= +1; ++i) if((mark+i)>=0 && (mark+i)<_320) bar[mark+i+1*_320] = white;
             if(y<=_239-2) bar[mark+2*_320] = white;
+--y; bar -= _320;
             // bars & progress (bottom)
-            //if(y<=_239-4) for( int x = 1; x<=mark; ++x )  bar[-1+4*_320] = black;
-            if(y<=_239-4) for( int x = 0; x < T320; ++x ) bar[x+4*_320] = white;
-            if(y<=_239-5) for( int x = 0; x < T320; ++x ) BAR_FILLING(bar[x+5*_320] = white);
-            if(y<=_239-5) for( int x = 0; x<=mark; ++x )  bar[x+5*_320] = white;
-            if(y<=_239-6) for( int x = 0; x < T320; ++x ) bar[x+6*_320] = white;
+            TPixel zero = {0};
+            int hovered = mouse().y > _240-5;
+            for( int x = 0; x < T320; ++x ) {
+                int pct = (int)((x)*1000.0/(T320+!T320));
+                unsigned tape_color = tape_preview[pct];
+
+#if 1
+                if( y <= _239-6 ) bar[x+6*_320] = x < (mark+!tape_color) && !hovered ? white : !tape_color ? zero : (tape_color & 1 ? x & 1 : x & 5) ? white : zero;
+#elif 0
+                if( y <= _239-4 ) bar[x+4*_320] = white;
+                if( y <= _239-6 ) bar[x+6*_320] = x == mark ? white : !tape_color ? zero : (tape_color & 1 ? x & 1 : x & 5) ? white : zero;
+#elif 0
+                if( y <= _239-2 ) bar[x+2*_320] = white;
+                if( y <= _239-3 ) bar[x+3*_320] = x == mark ? white : zero;
+                if( y <= _239-4 ) bar[x+4*_320] = x == mark ? white : !tape_color ? zero : (tape_color & 1 ? x & 1 : x & 5) ? white : zero;
+                if( y <= _239-5 ) bar[x+5*_320] = x == mark ? white : zero;
+                if( y <= _239-6 ) bar[x+6*_320] = white;
+#elif 0
+                if( y <= _239-4 ) bar[x+4*_320] = white;
+                if( y <= _239-5 ) bar[x+5*_320] = x <= mark+1 ? white : zero;
+                if( y <= _239-6 ) bar[x+6*_320] = x <= mark+1 ? white : !tape_color ? zero : (x & (tape_color & 1 ? 1 : 5)) ? white : zero;
+#else
+                if( y <= _239-4 ) bar[x+4*_320] = white;
+                if( y <= _239-5 ) bar[x+5*_320] = x <= mark+1 ? white : !tape_color ? zero : (x & (tape_color & 1 ? 1 : 3)) ? zero : white;
+                if( y <= _239-6 ) bar[x+6*_320] = white;
+#endif
+            }
         }
 
         // is mouse hovering
@@ -1367,6 +1475,9 @@ void draw_ui() {
             }
             prev = m.buttons;
         }
+
+
+
     }
 
     // bottom slider. @todo: rewrite this into a RZX player/recorder
@@ -1582,6 +1693,7 @@ int main() {
     if( ZX_PLAYER ) {
         ZX_RF = 1;
         ZX_CRT = 1;
+        ZX_HORACE = 0;
     }
 
     // prepare title based on argv[0]
@@ -1627,6 +1739,7 @@ int main() {
 
     {
         int seekpos = 0;
+        int shaded = ZX_SHADED;
 
         // restore media: almost same than reload(ZX);
         titlebar(ZX_TITLE);
@@ -1641,6 +1754,10 @@ int main() {
         }
 
         tape_seeki(seekpos);
+
+        // refresh postfx + user shader too
+        ZX_SHADED = shaded;
+        crt(ZX_SHADED ? shader : ZX_CRT ? shader_spectral : shader_tigr);
     }
 
     // main loop
@@ -1658,6 +1775,9 @@ int main() {
         // force pause when blurred
         static int paused = 0; int running = tape_playing() || tigrFocused(app);
         paused = (paused + 1) * !running;
+#if DEV
+        ifdef(win32, paused *= !IsDebuggerPresent());
+#endif
         if( paused ) {
             if( paused > 1 ) {
                 ifdef(win32, Sleep(500), sys_sleep(500));
@@ -1674,7 +1794,7 @@ int main() {
 #if 1
         // 4 parameters in our shader. we use parameters[0] to track time
         if( ZX_CRT )
-        tigrSetPostFX(app, (ticks / (69888 * 50.)), -mouse_offsets()[0],-mouse_offsets()[1], ZX_PALETTE == 6 ? 0.85 : (ZX_PALETTE > 6) * 0.15 );
+        tigrSetPostFX(app, (ticks / (69888 * 50.)), -mouse_offsets()[0],-mouse_offsets()[1], (ZXPaletteNames[ZX_PALETTE][0] - '0') * 0.094444 );
         else
         tigrSetPostFX(app, 0, 0,0,1); // app->w,app->h,1);
 
@@ -1708,8 +1828,9 @@ int main() {
 
         // detect disk activity: fdc.timeout can be 0 or 512 while idling. wd.Wait is 255 for every cmd, then gets decremented every tick.
         // not using fdc.motor because some games leave that set while playing (cybernoid2,smaily,rickdangerous2)
-        int fdc_inuse = (ZX_PENTAGON || ZX == 300) && ((fdc.timeout & 0x1FF) || (wd.Wait == 255) || (PC(cpu) < 0x4000 && GET_MAPPED_ROMBANK() == GET_3DOS_ROMBANK()) || play_findvoice('read') || play_findvoice('seek'));
-        static int disk_hz = 0; disk_hz = fdc_inuse; // disk_hz += 50 * fdc_inuse; disk_hz = CLAMP(disk_hz-1, 0, 50);
+        int fdc_inuse3 = ZX == 300 && ((fdc.timeout & 0x1FF) || (PC(cpu) < 0x4000 && GET_MAPPED_ROMBANK() == GET_3DOS_ROMBANK()));
+        int fdc_inuseP = ZX_PENTAGON && ((wd.Wait == 255) || ((PC(cpu) & 0xFF00) == 0x3D00 && GET_MAPPED_ROMBANK() == 1));
+        static int disk_hz = 0; disk_hz = fdc_inuse3 || fdc_inuseP || play_findvoice('read') || play_findvoice('seek'); // disk_hz += 50 * fdc_inuse; disk_hz = CLAMP(disk_hz-1, 0, 50);
 
         int disk_likely_loading = disk_hz > 0;
         int tape_likely_loading = (PC(cpu) & 0xFF00) == 0x0500 ? 1 : tape_hz > 40;
@@ -1908,21 +2029,7 @@ if( do_runahead == 0 ) {
         if(tape_playing()) timer += dt;
 
         static char dev_status[256] = "";
-        if( DEV || ZX_DEBUG ) {
-            char *ptr = dev_status;
-            ptr += sprintf(ptr, "%dm%02ds ", (unsigned)(timer) / 60, (unsigned)(timer) % 60);
-            ptr += sprintf(ptr, "%5.2ffps%s %d mem%s%d%d%d%d ", ZX_FPS, do_runahead ? "!":"", ZX, rom_patches ? "!":"", GET_MAPPED_ROMBANK(), (page128&8?7:5), 2, page128&7);
-            ptr += sprintf(ptr, "%02X%c%02X %04X ", page128, page128&32?'!':' ', page2a, PC(cpu));
-            ptr += sprintf(ptr, "%c%c%d %4dHz %dHz ", "  +-"[tape_inserted()*2+tape_level()], toupper(tape_peek()), mic_on, tape_hz, disk_hz);
-
-#if 0
-            ptr += sprintf(ptr, "%s", voice_info(0));
-#else
-            ptr += sprintf(ptr, "\nsfx");
-            for( int i = 0; i < voices_max; ++i )
-            ptr += sprintf(ptr, "%d", (int)voice[i].count < 0 ? 9 : voice[i].count );
-#endif
-
+        for( dev_status[0] = 0; (DEV || ZX_DEBUG) && !browser && !dev_status[0]; ) {
             // renders per second
             static int rps_;
             static char screen_[6912];
@@ -1930,7 +2037,16 @@ if( do_runahead == 0 ) {
             static float taken_;
             if( (taken_ += dt) >= 1 ) taken_ -= (int)taken_, ZX_RPS = rps_, rps_ = 0;
 
-            ptr += sprintf(ptr, " rps:%d", (int)ZX_RPS);
+            char *ptr = dev_status;
+            ptr += sprintf(ptr, "%02d/", (int)ZX_RPS);
+            ptr += sprintf(ptr, "%5.2ffps%s %d mem%s%d%d%d%d ", ZX_FPS, do_runahead ? "!":"", ZX, rom_patches ? "!":"", GET_MAPPED_ROMBANK(), (page128&8?7:5), 2, page128&7);
+            ptr += sprintf(ptr, "%02X%c%02X %04X ", page128, page128&32?'!':' ', page2a, PC(cpu));
+
+            for( int i = 0; i < voices_max; ++i )
+            ptr += sprintf(ptr, "%x", (int)voice[i].count > 15 ? 15 : voice[i].count );
+
+            ptr += sprintf(ptr, " %c%c%d %dHz ", "  +-"[tape_inserted()*2+tape_level()], toupper(tape_peek()), mic_on, disk_hz ? disk_hz : tape_hz);
+            ptr += sprintf(ptr, "\n%dm%02ds ", (unsigned)(timer) / 60, (unsigned)(timer) % 60);
         }
 
         // rec before/after UI,
@@ -1939,12 +2055,10 @@ if( do_runahead == 0 ) {
         gui(dev_status), rec(ZX_PRINTUI ? app : canvas);
 
         #define LOAD(ZX,file) if(file) do { \
-                if( !load_shader( file ) ) { \
-                    if( !load(file,ZX) ) { \
-                        if( is_folder(file) ) cmdkey = 'SCAN', cmdarg = file; \
-                        else alert(va("cannot open '%s' file\n", file)); \
-                    } else titlebar(file), (free(ZX_MEDIA), ZX_MEDIA = strdup(file)); \
-                } \
+                if( !load(file,ZX) ) { \
+                    if( is_folder(file) ) cmdkey = 'SCAN', cmdarg = file; \
+                    else alert(va("cannot open '%s' file\n", file)); \
+                } else titlebar(file), (free(ZX_MEDIA), ZX_MEDIA = strdup(file)); \
             } while(0)
 
         // parse drag 'n drops. reload if needed
@@ -1970,6 +2084,13 @@ if( do_runahead == 0 ) {
         }
         else if( __argv[i][1] == 'v' ) cmdkey = 'HELP';
 
+        // joffa ui
+        do_once {
+            time_t t = time(0);
+            struct tm *tm = localtime(&t);
+            int mm = tm->tm_mon+1, dd = tm->tm_mday;
+            if( mm == 02 && dd == 01 ) ui_mirror_bak = 1;
+        }
 
         // clear command
         int cmdkey_ = cmdkey; cmdkey = 0;
@@ -1991,7 +2112,7 @@ if( do_runahead == 0 ) {
             break; case 'EJEC':  tape_reset();
             break; case 'FAST':  ZX_FASTTAPE ^= 1;
 
-            break; case  'TV':  { static int mode = 0; do_once mode = ZX_CRT << 1 | ZX_RF; mode = (mode + 1) & 3; if(cmdarg_) mode = atoi(cmdarg_); ZX_RF = mode & 1; crt(ZX_CRT = !!(mode & 2) ); }
+            break; case  'TV':  { static int mode = 0; do_once mode = ZX_SHADED ? 4 : ZX_RF << 1 | ZX_CRT; mode = (mode + 1) % (ZX_SHADER && ZX_SHADER[0] ? 5 : 4); if(cmdarg_) mode = atoi(cmdarg_); ZX_RF = !!(mode & 2); ZX_CRT = mode & 1; ZX_SHADED = mode == 4; crt( ZX_SHADED ? shader : ZX_CRT ? shader_spectral : shader_tigr ); }
 
             break; case 'FULL': { int mode = cmdarg_ ? atoi(cmdarg_) : (ZX_FULLSCREEN ^ 1);
                                 if( app_create(window_title(NULL), mode, ZX_ZOOM) ) ZX_FULLSCREEN = mode; }
@@ -2053,7 +2174,7 @@ if( do_runahead == 0 ) {
             break; case 'AY':    { const int table[] = { 1,2,0,0 }; ZX_AY = table[ZX_AY]; if(cmdarg_) ZX_AY=atoi(cmdarg_); }
             break; case 'WAVE':  ZX_WAVES ^= 1;                                   if(cmdarg_) ZX_WAVES=atoi(cmdarg_);
             break; case 'LENS':  ZX_LENSLOK ^= 1;                                 if(cmdarg_) ZX_LENSLOK=atoi(cmdarg_);
-            break; case 'PAL':   ZX_PALETTE = (ZX_PALETTE+1)%countof(ZXPalettes); if(cmdarg_) ZX_PALETTE=atoi(cmdarg_);    palette_use(ZX_PALETTE, ZXPaletteNames[ZX_PALETTE][0] - '0');
+            break; case 'PAL':   ZX_PALETTE = (ZX_PALETTE+1)%countof(ZXPalettes); if(cmdarg_) ZX_PALETTE=atoi(cmdarg_);    palette_use(ZX_PALETTE, ZXPaletteNames[ZX_PALETTE][1] - '0');
             break; case 'FIRE':  ZX_AUTOFIRE = (ZX_AUTOFIRE+1)%4;                 if(cmdarg_) ZX_AUTOFIRE=atoi(cmdarg_);
             break; case 'GUNS':  ZX_GUNSTICK ^= 1;                                if(cmdarg_) ZX_GUNSTICK=atoi(cmdarg_);   if(ZX_GUNSTICK) ZX_MOUSE = 0, ZX_JOYSTICK = 0; // cycle guns
             break; case 'MICE':  ZX_MOUSE ^= 1;                                   if(cmdarg_) ZX_MOUSE=atoi(cmdarg_);      if(ZX_MOUSE) ZX_GUNSTICK = 0;                  // cycle kempston mouse(s)
@@ -2289,13 +2410,26 @@ if( do_runahead == 0 ) {
                 ui_dialog_option(2, "LT . . . . . . . . .. .. .. .. .. .. .. ..\n",NULL,0,0);
                 ui_dialog_option(2, "RT . . . . . . . . .. .. .. .. .. .. .. ..\n",NULL,0,0);
     #endif
+/*
+                const char *buttons[] = { "□\f\f", "□\b\b\b\b\b\b\b\b\5√\7\f\f\f" };
+                #define UI_CHECKBOX(hint,name,condition,cmd,toggle_val,main_val) \
+                ui_dialog_option(1|4,va("<%s", buttons[!!(condition)]),NULL,cmd,toggle_val); \
+                ui_dialog_option(1|4,va("%s\n", name),hint,cmd,main_val);
+                ui_dialog_separator();
+                UI_CHECKBOX("-Toggle Horace screenmate-","Keep horace onscreen", ZX_HORACE, 'HOR1',"1","1");
+*/
+ZX_HORACE = 1;
 
                 ui_dialog_separator();
                 ui_dialog_option(1,"Save\n",0,'PAD2',0);
-                ui_dialog_option(1,"Cancel\n",0,0,0);
+                ui_dialog_option(1,"Cancel\n",0,'HOR1',"0");
 
                 cmdkey = 'PAD1';
             }
+
+            break; case 'HOR2': // toggle horace (port2) @todo
+            break; case 'HOR1': // toggle horace (port1)
+            ZX_HORACE ^= 1; if( cmdarg_ ) ZX_HORACE = atoi(cmdarg_);
 
             break; case 'PAD1': // tick remap
             {
@@ -2391,6 +2525,7 @@ if( do_runahead == 0 ) {
 
             break; case 'PAD2': // apply remap
                 memcpy(ZX_PAD, ZX_PAD_, sizeof(ZX_PAD_));
+                ZX_HORACE = 0;
 
             break; case 'MP3P': // mp3 play
                 {
@@ -2533,7 +2668,7 @@ void on_cmd(unsigned key, const char *arg) {
 
 int gui(const char *status) {
     if( DEV ) {
-        float x = 0.5, y = 25.5;
+        float x = 0.5, y = 0.5; // 23.5;
         ui_print(ui,  x*11, y*11, ui_colors, status);
     }
 
@@ -2542,6 +2677,7 @@ int gui(const char *status) {
 
         float x = 0.5, y = 2;
 
+        if( !DEV )
         ui_print(dbg, x*11, y*11, ui_colors, status), y += 1.5;
 
         ui_print(dbg, x*11, y*11, ui_colors, regs(0)), y += 5;
@@ -2618,16 +2754,160 @@ int gui(const char *status) {
         tigrBlitAlpha(app, dialog, 0,0, 0,0, _320,_240, 1.0f);
     }
 
-    // test gamepad bindings
-    if( DEV ) {
-        static int gx, gy, bt;
-        do_once gx = _320/2, gy = _240*0.75, bt = 0;
-        if( ZX_PAD[1] ) if( tigrKeyHeld(app, ZX_PAD[1]) ) gx -= 1;
-        if( ZX_PAD[2] ) if( tigrKeyHeld(app, ZX_PAD[2]) ) gx += 1;
-        if( ZX_PAD[3] ) if( tigrKeyHeld(app, ZX_PAD[3]) ) gy -= 1;
-        if( ZX_PAD[4] ) if( tigrKeyHeld(app, ZX_PAD[4]) ) gy += 1;
-        if( ZX_PAD[5] ) bt= tigrKeyHeld(app, ZX_PAD[5]);
-        ui_print(app, gx % _320, gy % _240, ui_colors, bt ? "" : "");
+    // companion screenmate, aka co-op for kids. used to be a test for gamepad bindings
+    // @todo: coyote time
+    // @todo: allow jumping right before touching the ground
+    if( ZX_HORACE ) {
+        int _230 = _240 - 2 * ZX_CRT; //-10;
+
+        const char *smile = "";
+        const char *stand = ""; // alternate 
+        const char *walk[] = {"","","",""}; // 4-frame walk
+        const char *jump[] = {"",""}; // ascending/descending frames
+        const char *duck = "";
+
+        static unsigned bgcolors[8];
+        static float gx, gy, bt = 0, mv, dn;
+        static float vy = 0; // vertical velocity
+        static float is_jumping = 0; // jump state
+        static float ground, mirror = 0;
+        do_once gx = _320/2, gy = -10, ground = _230;
+        mv = 0, dn = 0;
+
+        static int dragx, dragy, drag;
+        if( !drag && mouse().lb && fabsf(mouse().x - gx) < 8 && fabsf(mouse().y - gy + 8) < 8 ) {
+            drag = 1;
+            dragx = mouse().x - gx;
+            dragy = mouse().y - gy;
+        }
+        if( drag && mouse().lb ) {
+            mouse_cursor(2); // hand
+
+            float nx = mouse().x - dragx;
+            if( nx != gx ) mirror = nx < gx;
+            gx = mouse().x - dragx;
+            gy = mouse().y - dragy;
+            dn = 1, is_jumping = vy = 0;
+        } else {
+            drag = 0;
+        }
+
+        // Other inputs
+        if( ZX_PAD[3] ) if( tigrKeyHeld(app, ZX_PAD[3]) ) dn = 1;
+        if( ZX_PAD[2] ) bt = tigrKeyHeld(app, ZX_PAD[2]);
+
+        // Horizontal movement (using ZX_PAD[0] for left, ZX_PAD[1] for right)
+        if(!dn) {
+        if( ZX_PAD[0] ) if( tigrKeyHeld(app, ZX_PAD[0]) ) gx -= 2, mv = 1, mirror = 1;
+        if( ZX_PAD[1] ) if( tigrKeyHeld(app, ZX_PAD[1]) ) gx += 2, mv = 1, mirror = 0;
+        }
+
+        // Jump logic (using ZX_PAD[2] for jump)
+        if( ZX_PAD[4] ) {
+            if( tigrKeyDown(app, ZX_PAD[4]) && !is_jumping && gy >= ground ) {
+                memset32(bgcolors, 0, countof(bgcolors));
+
+                if( dn ) {
+                    // duck: consider all colors on ground as transparent and fall down.
+                    for( int x = -4; x < 4; ++x) {
+                        bgcolors[x+4] = app->pix[(int)((gx+x)+gy*_320)].rgba;
+                    }
+                }
+                else {
+                    vy = -6.0f; // Initial upward velocity (tuned for quick jump)
+                    is_jumping = 1;
+                }
+
+            }
+        }
+
+        // Vertical movement
+        if( is_jumping ) {
+            vy += 0.250f; // Apply gravity (tuned for snappy feel)
+            gy += vy; // Update y position
+            // Hit the ground
+            if( gy >= ground ) {
+                gy = ground;
+                vy = 0;
+                is_jumping = 0;
+            }
+        }
+
+        // disable platforms while in browser mode
+        if( browser ) ground = _230, is_jumping = gy != ground;
+        else
+
+        // check ground: descending or standing
+        if( is_jumping ? vy >= 0 : 1 ) {
+
+            // 3 states: loading, gaming or typing (in basic)
+            extern int tape_hz;
+            int typing = is_basic_mode();
+            int loading = tape_playing() && tape_hz > 200; // (PC(cpu) & 0xFF00) == 0x0500 ? 1 : tape_playing() && !typing;
+            int gaming = !loading && !typing;
+
+            unsigned hit = 0;
+            for( int y = gy+0; y < _230 && !hit; ++y ) {
+                ground = y;
+                for( int x = -4; x < 4; ++x ) {
+                    unsigned *fg = &app->pix[(int)(gx + x + y * _320)].rgba;
+
+                    // Compare foregound color against background color
+                    #define fgcheck(bg) if(bg) { \
+                        unsigned diff = bg - *fg; \
+                        double luma = 1.0 / (diff + !diff); \
+                        if( luma >= 0.95 ) continue; \
+                    }
+
+                    fgcheck(ZXPalette[ZXBorderColor]);
+
+                    if( !typing ) // gaming )
+                    fgcheck(ZXPalette[0]);
+
+                    fgcheck(bgcolors[0]);
+                    fgcheck(bgcolors[1]);
+                    fgcheck(bgcolors[2]);
+                    fgcheck(bgcolors[3]);
+                    fgcheck(bgcolors[4]);
+                    fgcheck(bgcolors[5]);
+                    fgcheck(bgcolors[6]);
+                    fgcheck(bgcolors[7]);
+                    
+                    hit = *fg;
+                    break;
+                }
+            }
+
+            // disable platforms on borders while loading from tape
+            if( loading ) {
+                // still, allow horace to climb up UI interface
+                if( hit != ui_ff.rgba ) {
+                    if( gy >= _240-_24 ) ground = _230;
+                    if( gy < _24 ) ground = _24;
+                    if( (gx < _32 || gx >= (_320-_32)) ) ground = _230;
+                }
+            }
+
+            if( gy < ground ) is_jumping = 1;
+            else
+                memset32(bgcolors, 0, countof(bgcolors)); // clear palette
+
+            //tigrFill(app, gx-4,gy, 8,ground-gy, tigrRGB(255,0,255) );
+        }
+
+
+        // Keep sprite in bounds
+        gx = fmod(gx + _320, _320);
+        gy = tigrClamp(gy, 0, _240);
+
+        // Select sprite
+        const char *sprite = dn ? duck :
+            is_jumping ? jump[vy >= 0] :
+            mv ? walk[(int)fmod(gx/6, 4)] : bt ? stand : smile;
+
+        ui_mirror = mirror;
+        ui_print(app, gx - 4, gy - 8, ui_colors, sprite);
+        //tigrPlot(app, gx, gy, tigrRGB(255,0,0));
     }
 
     return 1;

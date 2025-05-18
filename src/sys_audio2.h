@@ -9,7 +9,7 @@ int lprintf(FILE *f, char const *fmt, ...) { // tee()
     return rc;
 }
 FILE *logfile;
-#define lprintf(...) (DEV && lprintf(logfile ? logfile : (logfile = fopen("audiolog.txt","w+t")), __VA_ARGS__))
+#define lprintf(...) 0// (DEV && lprintf(logfile ? logfile : (logfile = fopen(".Spectral/Spectral.log","w+t")), __VA_ARGS__))
 
 
 

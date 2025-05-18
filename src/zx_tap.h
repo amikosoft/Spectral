@@ -35,6 +35,7 @@ uint64_t        tape_tstate; \
 int             tape_level; \
 int             tape_has_turbo, tape_num_stops, voc_len, voc_pos, voc_count, voc_units; \
 int             tape_issue2; \
+int             tape_counter; \
 struct tape_block q;
 VOC_DEFINES
 
@@ -121,6 +122,7 @@ void tape_reset(void) {
     tape_num_stops = 0;
     tape_issue2 = 0;
     tape_type = 0xFF;
+    tape_counter = 0;
 
     mic = 0;
     mic_on = 0;
@@ -152,13 +154,18 @@ void tape_finish() {
         if( voc[i].debug == 'u' && voc[i].units > 5000 )
             voc[i].units = 5000;
 
-    // @fixme: change tape_preview[] to hold colors instead (\1,\2,...). highlight .bas programs, side Bs, glue blocks and tzx groups
+    // @fixme: highlight .bas programs, side Bs, glue blocks and tzx groups
     // create tape preview in 2 steps
     // 1) any kind of noise is a dotted line (==1)
     // 2) ensure silences (==0) are clearly blank over dots from step 1.
-    for( int i = 0; i <= 1000; ++i ) tape_preview[i] = 1;
+    int tape_color = 1;
+    for( int i = 0; i <= 1000; ++i ) tape_preview[i] = tape_color;
     for( unsigned pos = 0; pos < voc_len; ++pos ) {
         unsigned pct = pos * 1000.0 / (voc_len + !voc_len);
+
+        tape_color += voc[pos].debug == 'o', tape_color -= 6 * (tape_color > 6);
+        tape_preview[pct] = tape_color;
+
         int silence = 2 * !!strchr("uo", voc[pos].debug) + !!strchr("l", voc[pos].debug); // 2-3 blanks for pa(u)se, st(o)p, pi(l)ots
         for( int i = 0; i < silence; ++i ) if(pct - i * (pct >= i) >= 0) tape_preview[pct - i * (pct >= i)] = 0;
 //        int specials = 2 * !!strchr("ln", voc[pos].debug); // pi(l)ot and sy(n)c tones
@@ -407,6 +414,7 @@ void tape_rewind() {
     IMPORT(tape_has_turbo); \
     IMPORT(tape_num_stops); \
     IMPORT(tape_issue2); \
+    IMPORT(tape_counter); \
     IMPORT(voc_pos); \
     IMPORT(voc_count); \
     IMPORT(voc_units); \
@@ -422,6 +430,7 @@ void tape_rewind() {
     EXPORT(tape_has_turbo); \
     EXPORT(tape_num_stops); \
     EXPORT(tape_issue2); \
+    EXPORT(tape_counter); \
     EXPORT(voc_pos); \
     EXPORT(voc_count); \
     EXPORT(voc_units); \

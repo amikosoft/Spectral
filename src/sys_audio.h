@@ -1,10 +1,18 @@
 #include "sys_audio2.h"
 
+
 // Audio system for a single-threaded ZX Spectrum emulator
 // Implements a circular buffer with dynamic overrun prevention, framerate adaptation, and sample averaging
 
 #define AUDIO_FREQUENCY     44100
 #define AUDIO_BUFFERLEN      8192 // 16384:~371.52ms at 44.1kHz, 4096:~93ms at 44.1kHz
+#define AUDIO_CHANNELS          2 // 1=Mono, 2=stereo
+
+#if AUDIO_CHANNELS==2
+typedef struct { float l,r; } float2;
+#else
+typedef union { float l,r; } float2;
+#endif
 
 // Circular buffer for audio channels
 float audio_buffer1[AUDIO_BUFFERLEN] = {0}; // beeper
@@ -14,7 +22,7 @@ float audio_buffer4[AUDIO_BUFFERLEN] = {0}; // AY1, ch2
 float audio_buffer5[AUDIO_BUFFERLEN] = {0}; // AY2, ch0
 float audio_buffer6[AUDIO_BUFFERLEN] = {0}; // AY2, ch1
 float audio_buffer7[AUDIO_BUFFERLEN] = {0}; // AY2, ch2
-float audio_mixed[AUDIO_BUFFERLEN] = {0};   // Mixed output
+float2 audio_mixed[AUDIO_BUFFERLEN] = {0};   // Mixed output
 
 int audio_write = 0;         // Write position
 int audio_read = 0;          // Read position
@@ -25,9 +33,16 @@ static void push_audio(int count) {
 
     if( (audio_read + count) <= AUDIO_BUFFERLEN ) {
         // 1-pass
-        float *s = audio_mixed + audio_read;
-        for (int i = 0; i < count; i++) {
-            s[ i ] += mix(0.5f);
+        float *s = (float*)&audio_mixed[ audio_read ];
+        for (int i = 0; i < count * AUDIO_CHANNELS; i += AUDIO_CHANNELS) {
+            float m = mix(0.5f);
+#if AUDIO_CHANNELS == 2
+            s[i+0] += m;
+            s[i+1] += m;
+#else
+            s[ i ] += m;
+#endif
+
 #if 0
             // Normalize to prevent clipping
             if (s[i] > 1.0f) s[i] = 1.0f;
@@ -36,7 +51,7 @@ static void push_audio(int count) {
 #endif
         }
         if( count ) {
-            saudio_push(s, count);
+            saudio_push(s, count * AUDIO_CHANNELS);
             audio_read += count;
         }
     } else {
@@ -71,8 +86,22 @@ void audio_queue(float sample, float samples[7]) {
     // Queue sample
     int next_pos = (audio_write + 1) % AUDIO_BUFFERLEN;
     if (next_pos != audio_read) {
-        // Store the sample in the circular buffer
-        audio_mixed[audio_write] = sample;
+#if AUDIO_CHANNELS == 2
+        float BUZZ = samples[0];
+        float AY_A = samples[1] + samples[4];
+        float AY_B = samples[2] + samples[5];
+        float AY_C = samples[3] + samples[6];
+        float AY_L = AY_A * 0.50 + AY_C * 0.50;
+        float AY_R = AY_B * 0.50 + AY_C * 0.50;
+        float master = 0.98f * 1 * !!sample; // * !!ZX_AY;
+
+        // Store the samples in the circular buffer
+        audio_mixed[audio_write].l = (BUZZ * 0.75 + AY_L * 0.25) * master;
+        audio_mixed[audio_write].r = (BUZZ * 0.75 + AY_R * 0.25) * master;
+#else
+        audio_mixed[audio_write].l = sample;
+#endif
+
         audio_buffer1[audio_write] = samples[0];
         audio_buffer2[audio_write] = samples[1];
         audio_buffer3[audio_write] = samples[2];
@@ -120,9 +149,9 @@ void audio_reset(void) {
     audio_read = 0;
 
     // Push initial silence to avoid immediate underruns
-    float silence[1024] = {0};
+    float2 silence[1024] = {0};
     for( int i = 0; i < ((AUDIO_BUFFERLEN/2)/1024); ++i)
-        saudio_push(silence, 1024);
+        saudio_push((float*)silence, 1024 * AUDIO_CHANNELS);
 }
 
 void audio_quit(void) {
@@ -135,7 +164,7 @@ void audio_init(void) {
     desc.buffer_frames =   (AUDIO_BUFFERLEN/8); // number of frames in the buffer (2048: ~46.4ms)
     desc.packet_frames = (AUDIO_BUFFERLEN/128); // number of packets per thread transfer
     desc.num_packets =   (AUDIO_BUFFERLEN/256); // number of packets in ring buffer
-    desc.num_channels = 1;
+    desc.num_channels = AUDIO_CHANNELS;
     saudio_setup(&desc);
     atexit(audio_quit);
 
@@ -143,7 +172,7 @@ void audio_init(void) {
     lprintf("%d audio frames\n", saudio_buffer_frames());
     lprintf("%d audio channels\n", saudio_channels());
 
-    if( saudio_sample_rate() != AUDIO_FREQUENCY || saudio_channels() != 1 )
+    if( saudio_sample_rate() != AUDIO_FREQUENCY || saudio_channels() != AUDIO_CHANNELS )
         alert(va("Cannot initialize audio [%dHz,%dch]", saudio_sample_rate(), saudio_channels())),
         exit(-1);
 

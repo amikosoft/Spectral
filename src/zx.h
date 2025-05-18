@@ -139,7 +139,8 @@ int ZX_PENTAGON = 0; // DEV; // whether the 128 model emulates the pentagon or n
 int ZX_KLMODE = 0; // 0:(K mode in 48, default), 1:(L mode in 48)
 int ZX_KLMODE_PATCH_NEEDED = 0; // helper internal variable, must be init to match ZX_KLMODE
 
-int ZX_WAVES = 0;
+int ZX_WAVES = 0; // 0: no, 1: yes
+int ZX_HORACE = 0; // 0: no, 1: player1 controlled (keys), 2: player2 controller (gamepad)
 
 const char *ZX_FN_STR[] = {"ESC","F1","F2","F3","F4","F5","F6","F7","F8","F9","F10","F11","F12"};
 int ZX_FN[12+1] = {'GAME'}; // redefineable function keys. FN[0] = ESC, FN[1..12] = F1..F12
@@ -161,8 +162,11 @@ char *ZX_FOLDER_WINDOWS = 0;
 #define ZX_FOLDER ZX_FOLDER_UNIX
 #endif
 
+int   ZX_SHADED = 0; // is ZX_SHADER enabled or not
+char *ZX_SHADER = 0; // path to the custom shader file
+
 #define INI_OPTIONS_STR(X) \
-    X(ZX_FOLDER_UNIX) X(ZX_FOLDER_WINDOWS) X(ZX_TITLE) X(ZX_MEDIA) X(ZX_TAB)
+    X(ZX_FOLDER_UNIX) X(ZX_FOLDER_WINDOWS) X(ZX_TITLE) X(ZX_MEDIA) X(ZX_TAB) X(ZX_SHADER)
 
 #define INI_OPTIONS_NUM(X) \
     X(ZX) \
@@ -188,7 +192,7 @@ char *ZX_FOLDER_WINDOWS = 0;
     X(ZX_PAD[0]) X(ZX_PAD[1]) X(ZX_PAD[2]) X(ZX_PAD[3]) X(ZX_PAD[4]) X(ZX_PAD[5]) \
     X(ZX_PAD[6]) X(ZX_PAD[7]) X(ZX_PAD[8]) X(ZX_PAD[9]) X(ZX_PAD[10]) X(ZX_PAD[11]) \
     X(ZX_PAD[12]) X(ZX_PAD[13]) X(ZX_PAD[14]) X(ZX_PAD[15]) \
-    X(ZX_ZOOM) X(ZX_FULLSCREEN) X(ZX_WAVES) X(ZX_LENSLOK)
+    X(ZX_ZOOM) X(ZX_FULLSCREEN) X(ZX_WAVES) X(ZX_LENSLOK) X(ZX_SHADED) /*X(ZX_HORACE)*/
 
 void logport(word port, byte value, int is_out);
 void outport(word port, byte value);
@@ -318,9 +322,9 @@ FDIDisk fdd[NUM_FDI_DRIVES];
 // medias
 uint64_t media_seek[16];
 
-enum { ALL_FILES = 0, GAMES_AND_ZIPS = 3*4, GAMES_ONLY = 6*4, TAPES_AND_DISKS_ONLY = 11*4, DISKS_ONLY = 15*4 };
+enum { ALL_FILES = 0, GAMES_AND_ZIPS = 4*4, GAMES_ONLY = 7*4, TAPES_AND_DISKS_ONLY = 12*4, DISKS_ONLY = 16*4 };
 int file_is_supported(const char *filename, int skip) {
-    const char *exts = ".pok.scr.ay .gz .zip.rar.rom.sna.z80.rzx.szx.tap.tzx.pzx.csw.dsk.img.mgt.trd.fdi.scl.$b.$c.$d.";
+    const char *exts = ".fx .pok.scr.ay .gz .zip.rar.rom.sna.z80.rzx.szx.tap.tzx.pzx.csw.dsk.img.mgt.trd.fdi.scl.$b.$c.$d.";
     const char *ext = strrchr(filename ? filename : "", '.');
     if( !ext ) return 0;
     char ext1[8]; snprintf(ext1, countof(ext1), "%s.", ext);
@@ -2076,7 +2080,7 @@ void boot0(int model, unsigned FLAGS) {
 
     // ayumi
     const int is_ym = 1; // should be 0, but 1 sounds more Speccy to me somehow (?)
-    const int eqp_stereo_on = 0;
+    const int eqp_stereo_on = AUDIO_CHANNELS == 2;
     const double pan_modes[7][3] = { // pan modes, 7 stereo types
       {0.50, 0.50, 0.50}, // MONO, original
       {0.10, 0.50, 0.90}, // ABC, common in west-Europe
@@ -2090,8 +2094,8 @@ void boot0(int model, unsigned FLAGS) {
     if (!ayumi_configure(&ayumi[0], is_ym, (2822400/2) * (ZX_FREQ / 3546894.0), AUDIO_FREQUENCY)) { // ayumi is AtariST based, i guess. use 2mhz clock instead
         die("ayumi_configure error (wrong ay freq?)");
     }
-    const double *pan = pan_modes[0];   // @fixme: ACB, mono for now
-    if(ZX_PENTAGON) pan = pan_modes[0]; // @fixme: ABC, mono for now
+    const double *pan = pan_modes[1*(AUDIO_CHANNELS==2)];   // ABC or mono
+    if(ZX_PENTAGON) pan = pan_modes[2*(AUDIO_CHANNELS==2)]; // ACB or mono
     ayumi_set_pan(&ayumi[0], 0, pan[0], eqp_stereo_on);
     ayumi_set_pan(&ayumi[0], 1, pan[1], eqp_stereo_on);
     ayumi_set_pan(&ayumi[0], 2, pan[2], eqp_stereo_on);
@@ -2303,11 +2307,24 @@ int mount(const char *file, byte *ptr, int len, int use_preloader) {
             for( int i = 0; i < num_files; ++i ) {
                 char *file = ptr + 0x9 + 14 * i; // [x8] name + [x1] type + [x3] params + [x1] length
                 char *ext = file + 8;
-                if( *ext == 'B' ) {
+                if( strchr("Bb", *ext) ) {
                     memcpy(file, "boot    B", 9);
                 }
             }
         }
+        // auto-patch .trd files to have a bootable basic file. @todo: !strcmpi()->is_trd(ptr,len) instead?
+        if( use_preloader && !strcmpi(ext, ".trd") && !memmem(ptr, len, "boot    B", 9) ) {
+            int files_to_scan = 64;
+            int bytes_per_file = 0x10;
+            if( len > files_to_scan * bytes_per_file )
+            for( int i = 0; i < files_to_scan; ++i ) {
+                if( strchr("Bb", ptr[i * 0x10 + 8]) ) {
+                    memcpy(&ptr[i * 0x10 + 0], "boot    B", 9);
+                    break;
+                }
+            }
+        }
+
 
         // this temp file is a hack for now. @fixme: implement a proper file/stream abstraction in FDI library
         for( FILE *fp = fopen(".Spectral/$$dsk", "wb"); fp; fwrite(ptr, len, 1, fp), fclose(fp), fp = 0);
@@ -2499,6 +2516,13 @@ int load(const char *filename, int model) { // `model`: explicit model to use, o
 #if TESTS
     printf("\n\n%s\n-------------\n\n", filename);
 #endif
+
+    if( strendi(filename, ".fx") ) {
+        if( load_shader(filename) ) {
+            if( ZX_SHADER ) free(ZX_SHADER), ZX_SHADER = 0;
+            return crt(shader), ZX_SHADER = strdup(filename), ZX_SHADED = 1;
+        }
+    }
 
     // guess media
     int hint = guess_v2(filename);

@@ -1,17 +1,18 @@
 #define luma(r,g,b) ((byte)((r)*0.299+(g)*0.587+(b)*0.114))
 #define gray(r,g,b) rgb(luma(r,g,b),luma(r,g,b),luma(r,g,b))
 
-const char *ZXPaletteNames[] = { // first char specifies whether bright mode is applied or not
-    "1Spectral",
-    "0Atkinson",
-    "0Vivid",
-    "0Ala-Konni",
-    "0Polyducks",
-    "0Fantasy",
-    "0Amber",
-    "0PCW",
-    "0Gray",
-    "0Negative",
+const char *ZXPaletteNames[] = { // first digits are options: bloom_factor|is_bright_mode
+    "01Spectral",
+    "00Atkinson",
+    "00Vivid",
+    "00Ala-Konni",
+    "00Polyducks",
+    "00Fantasy",
+    "40Gradients",
+    "90Amber",
+    "20PCW",
+    "20Gray",
+    "20Negative",
 };
 
 rgba ZXPalettes[][64] = {
@@ -127,6 +128,13 @@ rgba ZXPalettes[][64] = {
         rgb(0x00,0xc0,0x00),rgb(0x00,0xc0,0xc0),rgb(0xc8,0xc8,0x00),rgb(0xc0,0xc0,0xc0),
         rgb(0x04,0x0c,0x18),rgb(0x00,0x40,0xff),rgb(0xea,0x06,0x40),rgb(0xff,0x40,0xff),
         rgb(0x40,0xff,0x00),rgb(0x04,0xff,0xa2),rgb(0xff,0xd8,0x00),rgb(0xff,0xff,0xff),
+    },
+    {
+        // gradients (from specemu; probably chev's)
+        rgb(000,000,000),rgb(000,000,143),rgb(143,000,000),rgb(143,000,143),
+        rgb(000,143,000),rgb(000,143,143),rgb(143,143,000),rgb(143,143,143),
+        rgb(000,000,000),rgb(000,000,255),rgb(217,000,000),rgb(217,000,255),
+        rgb(000,217,000),rgb(000,217,255),rgb(217,217,000),rgb(217,217,255),
     },
     // [6] amber-ish. take pc emulators > b/w version > orange. limited to 8 lumas for better vis
     {
@@ -735,7 +743,7 @@ void frame(int drawmode, int do_sim) { // no render (<0), whole frame (0), scanl
 #endif
 }
 
-const char *shader = 
+const char *shader_spectral = 
 #if 0
 "/* HSV from/to RGB conversion functions by Inigo Quilez. https://www.shadertoy.com/view/lsS3Wc (MIT licensed)*/\n"
 "const float eps = 0.0000001;\n"
@@ -900,19 +908,24 @@ const char *shader =
     "}\n" // ultrawide ula
     "}\n";
 
-void crt(int enable) {
+const char *shader_tigr = tigr_default_fx_gl_fs;
+char *shader = 0;
+
+void crt(const char *fx) {
     extern window *app;
-    if( enable )
-    tigrSetPostShader(app, shader, strlen(shader));
-    else
-    tigrSetPostShader(app, tigr_default_fx_gl_fs, strlen(tigr_default_fx_gl_fs));
+    if( fx )
+    tigrSetPostShader(app, fx, strlen(fx));
 }
 
 int load_shader(const char *filename) {
     char *data = readfile(filename, NULL);
-    if(data)
-        if(strstr(data, " fxShader("))
-            return shader = strdup(data), crt(1), 1; // @leak
+    if( data ) {
+        if( strstr(data, " fxShader(") ) {
+            if( shader ) free(shader), shader = NULL;
+            return /*crt*/(shader = data), 1;
+        }
+        free(data);
+    }
     return 0;
 }
 

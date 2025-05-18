@@ -414,6 +414,7 @@ int tzx_load(const byte *fp, int len) {
         }
 
         if(blockname) {
+        for(int i = 0; debug[i]; ++i) if(debug[i] == 0x7) i[(char*)debug] = ' '; // remove bells
         printf("tzx.block %03d ($%02X) %6d bytes [%-13s] %s\n",processed,id,bytes,blockname,debug);
         }
     }

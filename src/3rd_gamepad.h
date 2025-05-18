@@ -439,10 +439,7 @@ void GamepadInit(void) {
     }
 
     //< @r-lyeh
-    static int ever = 0;
-    if(!ever) {
-        ever = 1;
-
+    if(1) {
         HINSTANCE h = 0;
         h = h ? h : LoadLibraryA("xinput1_4.dll");   // win8,10,11... shipped
         h = h ? h : LoadLibraryA("xinput1_3.dll");   // directx sdk, xp... redistributable
@@ -458,10 +455,10 @@ void GamepadInit(void) {
             XInputEnable_ = (XInputEnable_t)GetProcAddress(h, "XInputEnable");
             XInputSetState_ = (XInputSetState_t)GetProcAddress(h, "XInputSetState");
             //XInputGetKeystroke_ = (XInputGetKeystroke_t)GetProcAddress(h, "XInputGetKeystroke");
-        }
 
-        if (XInputEnable_) {
-            XInputEnable_(TRUE);
+            if (XInputEnable_) {
+                XInputEnable_(TRUE);
+            }
         }
     }
 }
