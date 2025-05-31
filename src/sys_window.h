@@ -5,7 +5,7 @@
 extern Tigr *app;
 
 #define window Tigr
-#define window_flags(FS,ZOOM) (((FS) * TIGR_FULLSCREEN) | TIGR_AUTO/*TIGR_FIXED*/ | ((ZOOM)==2?TIGR_2X:(ZOOM)==3?TIGR_3X:(ZOOM)==4?TIGR_4X:0))
+#define window_flags(FS,ZOOM) (((FS) * TIGR_FULLSCREEN) | TIGR_AUTO/*TIGR_FIXED*/ | ((ZOOM)>4?TIGR_8X:(ZOOM)>=4?TIGR_4X:(ZOOM)>=3?TIGR_3X:(ZOOM)>=2?TIGR_2X:0))
 #define window_closed() (tigrClosed(app))
 #define window_close()  (app = (app ? tigrFree(app), NULL : NULL))
 #define window_width()  (app->w)
@@ -13,13 +13,14 @@ extern Tigr *app;
 #define window_title(title) tigrTitle(app,title)
 void    window_override_icons();
 
+char *app_clipboard;
 
 static int key_char[16] = {0}, key_chars = 0; // key_char = tigrReadChar(app);
-#define key_char(idx) key_char[(idx) % 16]
+#define key_char(idx) (key_char[(idx) % countof(key_char)])
 #define key_read() do {\
     memset(key_char,0,sizeof(key_char)); \
     key_chars = 0; \
-    do key_char[key_chars++] = tigrReadChar(app); while( key_chars < 16 && key_char[key_chars-1] ); \
+    do key_char[key_chars++] = tigrReadChar(app); while( key_chars < countof(key_char) && key_char[key_chars-1] ); \
 } while(0)
 
 #define key_held(keycode) (!!(tigrKeyHeld(app, keycode)))

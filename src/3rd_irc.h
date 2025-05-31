@@ -48,6 +48,7 @@ typedef struct {
     char nick[32];
     char chan[32];
     char name[32];
+    char client[32];
     char pong[64];
     int index;
     int state;
@@ -58,10 +59,10 @@ int ircd_die(const char *err)
 {
     fprintf(stderr, "%s\n", err);
     exit(atoi(err));
-    return 1;
+    return -1;
 }
 
-int CL_APPEND(char *buf, char *sep, char *key)
+int CL_APPEND(char *buf, const char *sep, const char *key)
 {
     if (key && strlen(key))
     {
@@ -76,7 +77,8 @@ int CL_APPEND(char *buf, char *sep, char *key)
     return 0;
 }
 
-void servmsg(int sock, char *text, char *cmd, char *opt)
+//void servmsg(int sock, const char *text, const char *cmd, const char *opt)
+void servmsg(int sock, const char *cmd, const char *opt, const char *text)
 {
     int len;
     char buf[BUF_SIZE] = { 0 };
@@ -94,7 +96,7 @@ void servmsg(int sock, char *text, char *cmd, char *opt)
     send(sock, buf, len, 0);
 }
 
-int ircd_parse(ircd_t * cl, char *buf, UNUSED int len)
+int ircd_parse(ircd_t * cl, const char *buf, UNUSED int len)
 {
     char opt[BUF_SIZE];
     char from[BUF_SIZE];
@@ -108,38 +110,42 @@ int ircd_parse(ircd_t * cl, char *buf, UNUSED int len)
 
     if (cl->state == 0)
     {
-        servmsg(sock, 0, "NICK", cl->nick);
-        sprintf(opt, "%s %s %s", "jpilot", "test", "localhost");
-        servmsg(sock, cl->name, "USER", opt);
+        servmsg(sock, "NICK", cl->nick, 0);
+        sprintf(opt, "%s %s %s", cl->client, "test", "localhost");
+        servmsg(sock, "USER", opt, cl->name);
         cl->state = 1;
     }
     else
     {
         if (sscanf(buf, "PING :%s", text) == 1)
         {
-                servmsg(sock, text, "PONG", "");
+                servmsg(sock, "PONG", "", text);
         }
         else if (sscanf(buf, ":%s %03d %s :%[^\r^\n]", from, &code, dest, text) > 1)
         {
             switch (code)
             {
                 case 1:
-                    servmsg(sock, 0, "JOIN", cl->chan);
+                    servmsg(sock, "JOIN", cl->chan, 0);
                     break;
             }
         }
         else if (sscanf(buf, ":%[^!]!%s %s %s :%[^\r^\n]", from, mask, cmd, dest, text) >= 3)
         {
+#if 0
             if (!strcmp(cmd, "PRIVMSG") && strcmp(from, cl->nick))
-                servmsg(sock, text, "PRIVMSG", from);
+                servmsg(sock, "PRIVMSG", from, text);
+#endif
         }
     }
 
     return 0;
 }
 
-int ircd_init(ircd_t * cl, char *name, int port)
+int ircd_init(ircd_t * cl, const char *name, int port)
 {
+    cl->sock = -1;
+
     struct sockaddr_in addr;
     struct hostent *hp;
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -148,7 +154,10 @@ int ircd_init(ircd_t * cl, char *name, int port)
     addr.sin_port = htons(port);
     (hp = gethostbyname(name)) ? addr.sin_addr.s_addr = *(unsigned int *)hp->h_addr_list[0] : 0;
 
-    (void) (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) != -1 || ircd_die("0: socket error (ircd)"));
+    if( connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0 ) {
+        // ircd_die("0: socket error (ircd)");
+        return -1;
+    }
 
     ircd_printf("connected to %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
 
@@ -165,6 +174,8 @@ int ircd_init(ircd_t * cl, char *name, int port)
 
 int ircd_update(ircd_t * cl)
 {
+    if(cl->sock == -1) return 0;
+
     int len;
     char *p;
     char buf[BUF_SIZE];
@@ -180,8 +191,7 @@ int ircd_update(ircd_t * cl)
     if (len > 0)
     {
         buf[len] = 0;
-        ircd_printf("[recv %d bytes] ", len);
-        ircd_printf("%s\n", buf);
+        ircd_printf("[recv %d bytes] %s\n", len, buf);
 
         if (cl->len + len < BUF_SIZE)
         {
@@ -196,11 +206,12 @@ int ircd_update(ircd_t * cl)
             memmove(cl->buf, cl->buf + len, BUF_SIZE - len);
             cl->len -= len;
             buf[len - 1] = 0;
+            ircd_printf("%.*s\n", len, buf);
             ircd_parse(cl, buf, len);
         }
     }
 
-    return 0;
+    return 1;
 }
 
 ircd_t m_ircd;

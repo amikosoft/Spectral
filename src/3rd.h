@@ -17,6 +17,7 @@
 #include "3rd_tigrrendermap.h"
 #include "3rd_tigrwindowed.h"
 #include "3rd_tigrfocused.h"
+#include "3rd_tigrclipboard.h"
 #undef border
 #undef run
 
@@ -88,3 +89,5 @@
 #include "3rd_drmp3.h"
 
 #include "3rd_arc4.h"
+
+#include "3rd_ands.h"

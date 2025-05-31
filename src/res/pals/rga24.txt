@@ -1,0 +1,25 @@
+"I’ve made a colour palette for 16K/48K/+ machines, based on the YUV voltage tables in Chris Smith’s book The ZX Spectrum ULA.
+
+This colour palette is suitable for ZX Spectrum 16K, ZX Spectrum 48K and ZX Spectrum+ machines, basically machines which use the original Sinclair Ferranti ULA, 5C102E, 5C112E or 6C001E. It is not suitable for 128/+2/+3/+2A machines, as these use a TEA2000 composite video encoder and don’t have the YUV voltages in Chris Smith’s book.
+
+In B R G format:
+
+0 6 8
+A7 D 13
+7 BD 7
+AF C3 12
+C 7 BA
+B4 D C6
+14 BC B9
+BC C2 C4
+0 6 8
+B0 16 1C
+18 CE 18
+C8 DC 2C
+2D 28 DC
+DE 36 EF
+46 EE EB
+"
+
+rga24 (Richard Atkinson)
+

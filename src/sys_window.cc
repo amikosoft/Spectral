@@ -5,6 +5,39 @@
 extern "C" int   tinyfd_assumeGraphicDisplay;
 extern "C" char* tinyfd_inputBox(const char *, const char *, const char *);
 extern "C" char* osdialog_prompt(int, const char*, const char*);
+extern "C" void  hexdump(void*,unsigned);
+
+#include <stdlib.h>
+char* ConvertCP1252toUTF8(const char* cp1252Str) {
+    if (!cp1252Str) return NULL;
+
+    // Convert CP1252 to wide char (UTF-16)
+    int wideSize = MultiByteToWideChar(CP_ACP, 0, cp1252Str, -1, NULL, 0);
+    if (wideSize == 0) return NULL;
+
+    wchar_t* wideStr = (wchar_t*)malloc(wideSize * sizeof(wchar_t));
+    if (!wideStr) return NULL;
+
+    MultiByteToWideChar(CP_ACP, 0, cp1252Str, -1, wideStr, wideSize);
+
+    // Convert wide char to UTF-8
+    int utf8Size = WideCharToMultiByte(CP_UTF8, 0, wideStr, -1, NULL, 0, NULL, NULL);
+    if (utf8Size == 0) {
+        free(wideStr);
+        return NULL;
+    }
+
+    char* utf8Str = (char*)malloc(utf8Size * sizeof(char));
+    if (!utf8Str) {
+        free(wideStr);
+        return NULL;
+    }
+
+    WideCharToMultiByte(CP_UTF8, 0, wideStr, -1, utf8Str, utf8Size, NULL, NULL);
+
+    free(wideStr);
+    return utf8Str;
+}
 
 extern "C"
 char* prompt( const char *title, const char *caption, const char *defaults ) {
@@ -302,6 +335,10 @@ SetWindowPos(hwndInputBox, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 
         DestroyWindow(myinp.hwndInputBox);
     }
+
+    char *x = ConvertCP1252toUTF8(result);
+    strncpy(result, x, 2048);
+    free(x);
 
 #if 2 // FULLSCREEN FIX 2/2
     if( is_fullscreen ) {

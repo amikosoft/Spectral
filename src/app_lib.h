@@ -496,7 +496,7 @@ int filters_tick() { // returns true if any key was pressed
     int visible = num_options == 1 && (options[0].flags & 2) && options[0].text[0] == 'H';
 
     if( done ) {
-        filters_event = 1|2;
+//        filters_event = 1|2;
 
         memset(chars, 0, sizeof(int)*_16);
 
@@ -506,6 +506,8 @@ int filters_tick() { // returns true if any key was pressed
 
         // append typed filter to list
         if( filter && filter[0] /*&& key_down(TK_RETURN)*/ ) {
+            filters_event = 1|2;
+
             // convert special words into singular
             if( !strcmpi(filter, "demos") ) filter[4] = 0;
             //if( !strcmpi(filter, "tests") ) filter[4] = 0;
@@ -897,6 +899,24 @@ char* game_browser_v1() {
         if( i == selected ) {
         if( key_pressed( TK_SHIFT) && key_trigger( TK_SPACE) ) flagged = 1;
         if(!key_pressed( TK_SHIFT) && key_trigger( TK_SPACE) ) starred = 1;
+        if( key_pressed( TK_F2) && is_file ) {
+            const char *name = prompt("Rename", "Rename file to...", title);
+            if( name && strcmp(name, title) ) { // if not canceled...
+                if( !strchr(name, '/') && !strchr(name, '\\') ) { // if not a path...
+                    // rename .db file...
+                    char *src = va("%s/%s.db", last_scanned_folder, title);
+                    char *dst = va("%s/%s.db", last_scanned_folder, name);
+                    rename(src,dst);
+                    // and actual game.
+                    src[strlen(src)-3] = '\0';
+                    dst[strlen(dst)-3] = '\0';
+                    if( rename(src, dst) == 0 ) {
+                        free( games[i] );
+                        games[i] = strdup(dst);
+                    }
+                }
+            }
+        }
         }
 
         int stars = (dbgames[i] >> 8);

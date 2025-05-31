@@ -53,26 +53,28 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential libgtk-3-dev
       - name: Build Ubuntu
-        run: sh MAKE.bat
-      - name: Patch glibc for backwards compatibility
-        uses: lmangani/polyfill-glibc-action@main
-        id: polyfill
-        with:
-          glibc: "2.17"
-          target: "./SpectralNoZXDB.linux"
-      - name: Compress 'n Package
         run: |
-          upx -9 SpectralNoZXDB.linux
-          dd if=src/res/embed >> SpectralNoZXDB.linux
-          dd if=src/res/zxdb/Spectral.db.gz >> SpectralNoZXDB.linux
-          dd if=src/res/embed >> SpectralNoZXDB.linux
+          sh MAKE.bat
+#          strip --strip-all SpectralNoZXDB.linux # this is required for next polyfill step
+#      - name: Patch glibc for backwards compatibility
+#        uses: lmangani/polyfill-glibc-action@main
+#        id: polyfill
+#        with:
+#          glibc: "2.17"
+#          target: "./SpectralNoZXDB.linux"
+#      - name: Compress 'n Package
+#        run: |
+#          #upx -9 SpectralNoZXDB.linux # upx cannot pack polyfill'ed binaries
+#          dd if=src/res/embed >> SpectralNoZXDB.linux
+#          dd if=src/res/zxdb/Spectral.db.gz >> SpectralNoZXDB.linux
+#          dd if=src/res/embed >> SpectralNoZXDB.linux
       - name: Upload Ubuntu Artifact
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./SpectralNoZXDB.linux
+          asset_path: ./Spectral.linux
           asset_name: Spectral-${{ github.event.inputs.version }}.linux
           asset_content_type: application/x-executable
 
@@ -107,7 +109,7 @@ jobs:
 
   build-windows:
     needs: create-release
-    runs-on: windows-2019
+    runs-on: windows-2025 #-2022
     steps:
       - uses: actions/checkout@v3
       - name: Build Windows
@@ -124,7 +126,7 @@ jobs:
       # Submit signing request to SignPath
       - name: Sign with SignPath
         id: optional_step_id
-        uses: signpath/github-action-submit-signing-request@v1.1
+        uses: signpath/github-action-submit-signing-request@v1.2
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}

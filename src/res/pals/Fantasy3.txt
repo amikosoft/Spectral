@@ -1,0 +1,45 @@
+Fantasy15: A retro fantasy palette in 15 colors.
+- rlyeh, PublicDomain/Unlicensed/CC0.
+
+0 #040c18
+1 #430b9f #0c18b4
+2 #c00b00 #ff1000
+3 #ca006a #ff004d
+4 #07b814 #56e600
+5 #00bfd5 #38fcb3
+6 #ff9b00 #ffe600
+7 #d3c79a #ffffbb
+
+This is a fantasy palette for an upcoming Fantasy computer project. The palette is based on the ZX Spectrum computer family and can be used as a direct 4-bit RGBI palette replacement in those computers, or to be used as an option in ZX emulators.
+
+Highlights:
+
+- Provide new colors that spread the hue spectrum: purple, orange, brown, sunlight and an opinionated neutral skin tone.
+
+- Bring different complementary hues in the Dark variants while trying to feel vivid at any time, as the original palette did.
+
+- Tint colors to so they can be grouped and ramped more easily (ie, green-yellows, yellow-grays, blue-purples, purple-reds, green-cyans, etc.)
+
+- Fine-tuned with dozens of marvellous loading screen$s <3
+
+Reasoning for each pair of colors:
+
+- Purple/Blue: Most televisions did not have intense blues in the 80s. As a result, it was difficult to discern dark/bright blues on them. Any of them could be exchanged by the other and you could barely notice any change at all, especially if you had toggled the contrast levels in the TV set beforehand. In this palette, DarkBlue has been dropped in favor of Purple to have more hue variety. Purple and Blue both have similar lumas now (purposedly), so the idea is that Purple complements BrightBlue and is not meant to be used as a shading background color anymore. Eg, I want Purple to be a primary color too. Games that used DarkBlue to shade will benefit by having a different Purple hue on them, too.
+
+- Brown/Red: BrightRed is mostly untouched, as it was very iconic to the ZX palette. But then, it is difficult to have a vivid Brown color on the ZX Spectrum that feels native, to say the least. For this reason I have decided to use a very vivid DarkRed color that works dual as a DarkRed color and as a veeeery subtle BrightBrown variant. This DarkRed color is indeed biased to green, so it can be used as a BrightBrown if isolated enough on the screen (probably works better when surrounded by dark/Black colors). But for most of the time, Brown will still look work fine as a vivid DarkRed color, since this is primary use in ZX games. If needed, Brown can be coupled with the Orange color to have some kind of a brown sub-palette. They are far apart in the hue spectrum but your brain will do the match for you. If you feel more adventurous you might try 170,30,5 too.
+
+- Magenta/Pink: two complementary new colors that are more useful than the original colors (in my opinion), and hopefully, do not make your eyes cry. They also ramp better towards blue/purples and red/browns directions.
+
+- Green/Lime: made the DarkGreen color very vivid actually, so it can be singledly used as a replacement for both the original dark/bright green colors. Since this new color covers both previous Dark/Bright Green variants now, I have converted the remaining BrightGreen into a more attractive BrightLime color that shifts hue towards the Yellows spectrum more easily.
+
+- SkyBlue/Cyan: these colors are used profoundly for skylines, water and metallic surfaces in many games, so I made sure that they combine well with White/Sunlight too. The BrightCyan color is slightly green-ish to ease hue shifts toward greens, and vice-versa.
+
+- Orange/Yellow: the original Yellows were very iconic in the ZX world, but also very controversial. The original DarkYellow was probably a wet muddy gold color, and BrightYellow was so shiny that you could barely do anything with it. Still, it managed to be the foundation of the original ZX palette in my opinion, along with Red and Blue colors all together. Because these Yellows were really difficult to apply, I have decided to replace the muddy DarkYellow color with a more attractive vivid Orange, and also shift the remaining Yellow towards a more pleasant direction. They mix well with the Red/Brown colors too.
+
+- White: White color has been carefully crafted so it resembles both a white color and a gray color, and also can work as an opinionated neutral skin tone (since many games exploited White for that). Changing this color is always controversial because it is the default color while booting the computer in BASIC, and can feel unfamiliar and/or disgusting real quick. If needed, toggle the saturation on this color for a greater effect. You'll see this color sits actually between brown and orange hues once de-saturated. Other colors I experimented with included 189,173,117 or 211,200,160 for different artistic directions. You can experiment with those to have different skin tones.
+
+- Sunlight: This is a subtle color replacement for pure white. It can be used as a pale skin tone with lots of imagination but the primary goal was to shift heavily towards Yellow to give a subtle lighting effect in many games. This is especially noticeable when the color is used in large banners, lasers, explosions and sprite effects. Because of the high luma compared to the other colors in the palette, it can optically hallucinate into a glowing effect depending on the surrounding pixels and colors (especially if they are dark/blacks). It used to be either 255,255,150 or 255,255,175 for a while. Since I am getting used to this new 187 particular shade, this is what you get instead.
+
+- Black: there is no pure vantablack in this palette, as I am never attached to the artificial aspect of it. This Black has a very subtle shade to remind you, unconsciously, of a TV image.
+
+Kudos and thanks to all the artists for their amazing screen$s, which I used heavily to fine-tune this palette. In no special order: MAC, Diver, helpcomputer0, Oleg Origin, Chris Graham, David Thorpe, Pheel, Craig Stevenson, ZOSYA entertainment, Kantxo Design, and more! You guys rock.

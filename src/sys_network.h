@@ -7,6 +7,22 @@ char* download( const char *url, int *len ) { // must free() after use
 
     if( DEV ) printf("queue down %s\n", url);
 
+    if( strchr(url, '+') ) {
+        char escaped[512], *q = escaped;
+        for( const char *p = url; *p ; ) {
+            if (*p == '+') {
+                *q++ = '%';
+                *q++ = '2';
+                *q++ = 'B';
+                p++;
+            } else {
+                *q++ = *p++;
+            }
+        }
+        *q = '\0';
+        url = va("%s", escaped);
+    }
+
     int ok = 0;
     char buffer[ 4096 ];
     DWORD response_size = 0;

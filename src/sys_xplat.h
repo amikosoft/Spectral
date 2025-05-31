@@ -113,3 +113,18 @@ typedef int RECT;
 #ifdef _MSC_VER
 #define __thread __declspec(thread)
 #endif
+
+const char *strbegi(const char *, const char *);
+const char *flag(const char *name) {
+    for( int i = 1; i < __argc; ++i ) {
+        if( __argv[i][0] != '-' ) continue;
+
+        const char *found = strbegi(__argv[i], name);
+        if( found ) {
+            found += strlen(name);
+            if( *found == '=' ) return found + 1;
+            if( *found == '\0' ) return "";
+        }
+    }
+    return NULL;
+}

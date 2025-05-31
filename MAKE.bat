@@ -13,9 +13,9 @@ git pull
 if [ "$(uname)" != "Darwin" ]; then
 
 # setup (ArchLinux) ----------------------------------------------------------
-[ ! -f ".setup" ] && [ -x "$(command -v pacman)"  ] && sudo pacman -Sy && sudo pacman -Sy --noconfirm gcc && echo>.setup
+[ ! -f ".setup" ] && [ -x "$(command -v pacman)"  ] && sudo pacman -Sy && sudo pacman -Sy --noconfirm gcc ninja && echo>.setup
 # setup (Debian, Ubuntu, etc)
-[ ! -f ".setup" ] && [ -x "$(command -v apt-get)" ] && sudo apt-get -y update && sudo apt-get -y install gcc upx libx11-dev gcc libgl1-mesa-dev libasound2-dev mesa-common-dev libudev-dev && echo>.setup
+[ ! -f ".setup" ] && [ -x "$(command -v apt-get)" ] && sudo apt-get -y update && sudo apt-get -y install gcc upx ninja-build libx11-dev gcc libgl1-mesa-dev libasound2-dev mesa-common-dev libudev-dev && echo>.setup
 
 # compile -------------------------------------------------------------------- do not use -O3 below. zxdb cache will contain 0-byte files otherwise.
 echo gcc src/app.c -I src -o ./Spectral.linux -O2 -DNDEBUG=3 -D_GNU_SOURCE -Wno-unused-result -Wno-unused-value -Wno-format -Wno-multichar -Wno-pointer-sign -Wno-string-plus-int -Wno-empty-body -lm -lX11 -lGL -lasound -lpthread -ludev $* || exit
@@ -24,8 +24,8 @@ echo gcc src/app.c -I src -o ./Spectral.linux -O2 -DNDEBUG=3 -D_GNU_SOURCE -Wno-
 cp ./Spectral.linux SpectralNoZXDB.linux
 
 # build polyfill and patch glibc, so our binary works in older linux distros as well
-# git clone https://github.com/corsix/polyfill-glibc && cd polyfill-glibc && ninja polyfill-glibc && cd ..
-# ./polyfill-glibc/polyfill-glibc --target-glibc=2.17 Spectral.linux
+git clone https://github.com/corsix/polyfill-glibc && cd polyfill-glibc && ninja polyfill-glibc && cd ..
+./polyfill-glibc/polyfill-glibc --target-glibc=2.17 Spectral.linux
 
 # compress executable
 upx -9 Spectral.linux
@@ -251,7 +251,7 @@ ping -n 2 -w 1500 localhost > nul && rem wait 1s between 2 consecutive pings, so
 where /q rcedit-x64 || curl -LO https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe
 where /q rcedit-x64 && ^
 rcedit-x64 "Spectral.exe" --set-file-version "!year!.!month!.!today!.!today!!month!" && ^
-rcedit-x64 "Spectral.exe" --set-product-version "1.11 Spectral" && ^
+rcedit-x64 "Spectral.exe" --set-product-version "1.12 Spectral" && ^
 rcedit-x64 "Spectral.exe" --set-icon src\res\img\noto_1f47b.ico || goto error
 
 if "%__DOTNET_PREFERRED_BITNESS%"=="32" (
@@ -259,6 +259,12 @@ if "%__DOTNET_PREFERRED_BITNESS%"=="32" (
 )
 
 exit /b 0
+
+rem note to self: how to make a SpectralPlayer.exe version now
+rem replace ZX_PLAYER=0 as ZX_PLAYER=1
+rem echo.>src\res\zxdb\Spectral.db.gz
+rem make
+rem copy /y Spectral.exe + src\res\embed SpectralPlayer.exe
 
 :error
 @copy , ,, >nul

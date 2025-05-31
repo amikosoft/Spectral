@@ -1,0 +1,5 @@
+// cpc palette for spectrum
+// r-lyeh, public domain/CC0
+
+// extracted colors from the cpc wiki page at
+// https://www.cpcwiki.eu/index.php/Speccy_Port

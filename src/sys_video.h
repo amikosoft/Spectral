@@ -1,4 +1,5 @@
-#define rgb(r,g,b) (((r)<<0)|((g)<<8)|((b)<<16)|255<<24)
+#define rgb(r,g,b) ((((int)(r))<<0)|(((int)(g))<<8)|(((int)(b))<<16)|255<<24)
+#define rgbm(r,g,b,m) rgb(r*m,g*m,b*m)
 #define rgb_split(p,r,g,b) (b=(p>>16)&255,g=(p>>8)&255,r=(p)&255)
 byte hh,ss,vv;
 #define as_rgb(h,s,v) (hsv2rgb(h,s,v,&hh,&ss,&vv), rgb(hh,ss,vv))

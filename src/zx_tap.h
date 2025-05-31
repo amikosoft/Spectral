@@ -336,9 +336,11 @@ int tap_load(const void *fp, int siz) {
         unsigned bytes = ((pos[1]<<8) | pos[0]);
         if(bytes <= 2) break; // fix bad jet-pac.tap
 
-        // redo checksum. not needed unless tape contents have been hot patched (we do).
+        #if 0 // we dont hotpatch media contents anymore. we do hotpatch memory contents now instead.
+        // redo checksum. not needed unless tape contents have been hot patched
         byte *checksum = pos + 2 + bytes - 1; *checksum = 0;
         for( unsigned i = 0; i < (bytes - 1); ++i ) *checksum ^= pos[2+i];
+        #endif
 
         printf("tap.block %03d (%s) %u bytes\n",block,pos[2] ? "HEAD":"DATA", bytes - 2);
 
