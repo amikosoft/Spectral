@@ -49,6 +49,7 @@ typedef union { //< @r-lyeh: convert to union and provide rgba member
 #define TIGR_RETINA     16  // enable retina support on OS X
 #define TIGR_NOCURSOR   32  // hide cursor
 #define TIGR_FULLSCREEN 64  // start in full-screen mode
+#define TIGR_8X         128 // always enforce (at least) 8X pixel scale //< @r-lyeh
 
 // A Tigr bitmap.
 typedef struct Tigr {
@@ -106,6 +107,7 @@ void tigrSetPostShader(Tigr *bmp, const char* code, int size);
 // p3: scanlines - CRT scanlines effect (0-1)
 // p4: contrast - contrast boost (1 = no change, 2 = 2X contrast, etc)
 void tigrSetPostFX(Tigr *bmp, float p1, float p2, float p3, float p4);
+void tigrSetPostFX2(Tigr *bmp, float p5, float p6, float p7, float p8); //< @r-lyeh
 
 
 // Drawing ----------------------------------------------------------------
@@ -460,6 +462,7 @@ typedef struct {
     GLuint uniform_projection;
     GLuint uniform_model;
     GLuint uniform_parameters;
+    GLuint uniform_parameters2; //< @r-lyeh
     int gl_legacy;
     int gl_user_opengl_rendering;
 } GLStuff;
@@ -494,6 +497,7 @@ typedef struct {
     float widgetsScale;
 
     float p1, p2, p3, p4;
+    float p5, p6, p7, p8; //< @r-lyeh
 
     int flags;
     int scale;
@@ -598,6 +602,7 @@ const char tigr_upscale_gl_fs[] = {
     "out vec4 color;"
     "uniform sampler2D image;"
     "uniform vec4 parameters;"
+    "uniform vec4 parameters2;" //< @r-lyeh
     "void fxShader(out vec4 color, in vec2 coord);"
     "void main()"
     "{"
@@ -718,6 +723,8 @@ int tigrCalcScale(int bmpW, int bmpH, int areaW, int areaH) {
 }
 
 int tigrEnforceScale(int scale, int flags) {
+    if ((flags & TIGR_8X) && scale < 8)
+        scale = 8;
     if ((flags & TIGR_4X) && scale < 4)
         scale = 4;
     if ((flags & TIGR_3X) && scale < 3)
@@ -725,7 +732,7 @@ int tigrEnforceScale(int scale, int flags) {
     if ((flags & TIGR_2X) && scale < 2)
         scale = 2;
 #if 1 //< @r-lyeh: assume TIGR_1X, if no TIGR_2X/TIGR_3X/TIGR_4X flags are present
-    if ((flags & (TIGR_2X|TIGR_3X|TIGR_4X)) == 0)
+    if ((flags & (TIGR_2X|TIGR_3X|TIGR_4X|TIGR_8X)) == 0)
         scale = 1;
 #endif
     return scale;
@@ -6886,6 +6893,7 @@ void tigrCreateShaderProgram(GLStuff* gl, const char* fxSource, int fxSize) {
     gl->uniform_projection = glGetUniformLocation(gl->program, "projection");
     gl->uniform_model = glGetUniformLocation(gl->program, "model");
     gl->uniform_parameters = glGetUniformLocation(gl->program, "parameters");
+    gl->uniform_parameters2 = glGetUniformLocation(gl->program, "parameters2"); //< @r-lyeh
 }
 
 void tigrGAPICreate(Tigr* bmp) {
@@ -7017,6 +7025,7 @@ void tigrGAPIPresent(Tigr* bmp, int w, int h) {
         glUseProgram(gl->program);
         glUniformMatrix4fv(gl->uniform_projection, 1, GL_FALSE, projection);
         glUniform4f(gl->uniform_parameters, win->p1, win->p2, win->p3, win->p4);
+        glUniform4f(gl->uniform_parameters2, win->p5, win->p6, win->p7, win->p8); //< @r-lyeh
     } else {
 #if !(__APPLE__ || __ANDROID__)
         glMatrixMode(GL_PROJECTION);
@@ -7192,6 +7201,14 @@ void tigrSetPostFX(Tigr* bmp, float p1, float p2, float p3, float p4) {
     win->p2 = p2;
     win->p3 = p3;
     win->p4 = p4;
+}
+
+void tigrSetPostFX2(Tigr* bmp, float p5, float p6, float p7, float p8) { //< @r-lyeh
+    TigrInternal* win = tigrInternal(bmp);
+    win->p5 = p5;
+    win->p6 = p6;
+    win->p7 = p7;
+    win->p8 = p8;
 }
 
 #endif // TIGR_HEADLESS

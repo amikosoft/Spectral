@@ -20,9 +20,9 @@ Code is highly experimental and prone to change in the future. I will keep alter
 - [x] Unlicensed.
 - [x] Single executable.
 - [x] Cycle stepped Z80. Z80 Disassembler. 3.5/7/14 MHz.
-- [x] Cycle stepped ULA/ULA+ graphics. Multicolor. 25/30/50/60Hz fps lock.
+- [x] Cycle stepped ULA/ULA+ ultrawide/multicolor graphics. 25/30/50/60Hz fps lock.
 - [x] 16, 48, 128, +2, +2A, +3, Pentagon128 models.
-- [x] Issue 2/3 keyboards.
+- [x] Issue 2/3 keyboards. Modern native/host keyboard layout while in BASIC.
 - [x] Beeper/AY chips. Turbosound/Turbo-AY (Pentagon only). Waveforms.
 - [x] Kempston mouse. <!-- @todo: AMX mouse.-->
 - [x] Kempston/Fuller/Cursor/Sinclair joysticks. Gamepad support (Windows, Linux). <!-- @todo: invert joystick/mouse axes/buttons -->
@@ -36,17 +36,17 @@ Code is highly experimental and prone to change in the future. I will keep alter
 - [x] Nec µ765/Betadisk interfaces.
 - [x] Auto load games. Auto play/stop tape. TurboROM.
 - [x] Graphical tape browser.
-- [x] Run-Ahead.
+- [x] Improved input latency via Run-Ahead.
 - [x] POK support. <!-- @todo: cheats finder; useful? --> 
 - [x] Gunstick, Lightgun. Mikro-plus. [Lenslok](https://www.youtube.com/watch?v=GN_vPGQ4BNM). <!-- Cheetah Defender Lightgun, Magnum Light Phaser, Stack Light Rifle -->
 - [x] External shaders support.
 - [x] Internal savestates.
 - [x] Graphical User Interface.
 - [x] Portable: Windows, Linux, MacOS.
-- [x] Embedded ZXDB.
-- [x] ZXDB Browser. ZXDB Gallery. <!-- @todo: 3d tape cases. -->
+- [x] Embedded ZXDB. ZXDB Browser. ZXDB Gallery. <!-- @todo: 3d tape cases. -->
 - [x] Can translate game menus from some languages into English.
 - [x] Games can be appended to executable and get a standalone game viewer.
+- [x] Co-op for kids: Horace, a companion screenmate.
 
 # Downloads
 Download both source code and binary releases from [these links](https://github.com/r-lyeh/Spectral/releases).
@@ -67,6 +67,8 @@ Hold any F1..F12 key for 2 seconds to redefine it.
 
 # Credits
 Andre Weissflog, for their many single-header libraries! (Zlib licensed). Peter Sovietov and wermipls, for their accurate AY chip emulator (MIT licensed). Ulrich Doewich and Colin Pitrat, for their uPD765A floppy disk controller (GPL licensed). Marat Fayzullin for their WD1793/FDI controllers (Proprietary). Sean Middleditch for their gamepad code (MIT licensed). Sergey Bulba for their ay2sna tool (Public Domain). Potapov Vsevolod Viktorovich for their rusfaq website. Andrew Owen and Geoff Wearmouth for their custom ROMs. Simon Owen for their DSK technical websites. Santiago Romero, Philip Kendall, James McKay for their FOSS emulators. Damian Vila for their BESCII truetype font (CC-1.0). lalaoopybee, for their lovely tube shader. Günter Woigk, Juan Carlos González Amestoy and David Colmenero for their floppy sound recordings. Sean Middleditch for their gamepad library (MIT). joric for their irc client (PD). David Reid and Lieff for their mp3 decoding library (PD). Steve John for their waveform display code (MIT). Simon Owen for their LensKey source code. The ZXDB devs. The ZX Spectrum Discord folks. All the ZX community!
+
+Special thanks to zjoYkileR, ZXGuesser, Beginner, arjun, ref and LaesQ! :D
 
 # Unlicense
 This software is released into the [public domain](https://unlicense.org/). Also dual-licensed as [0-BSD](https://opensource.org/licenses/0BSD) or [MIT (No Attribution)](https://github.com/aws/mit-0) for those countries where public domain is a concern (sigh). Any contribution to this repository is implicitly subjected to the same release conditions aforementioned.

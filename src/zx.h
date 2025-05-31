@@ -103,7 +103,7 @@ int ZX_ALTROMS = 0; // 0:(no, original), 1:(yes, custom)
 int ZX_MULTIFACE = 0; // 0:(no), 1:(yes, any kind)
 int ZX_HAL10H8 = 1; // 0:(good), 1:(faulty HAL10H8 chip, as used in 128/+2 models)
 int ZX_PRINTUI = 0; // whether print UI yes/no in both screenshots and/or video records
-int ZX_ZOOM = 2; // 0..1:x1, 2:x2, 3:x3, 4:x4
+int ZX_ZOOM = 2; // 0..1:x1, 2:x2, 3:x3, 4:x4, >4:x8
 int ZX_FULLSCREEN = 0; // 0:no, 1:yes
 
 int ZX_TS;
@@ -116,6 +116,8 @@ float ZX_FPS, ZX_RPS; // projected framerate on app, also frames the zx can rend
 
 int ZX_RF = !DEV;
 int ZX_CRT = !DEV;
+int ZX_BLUR = 50; // 0:off .. 100:max
+int ZX_BLOOM = 0; // 0:off .. 100:max
 int ZX = 128; // 16, 48, 128, 200 (+2), 210 (+2A), 300 (+3)
 int ZX_AY = 2; // 0: no, 1: fast, 2: accurate
 int ZX_PALETTE = 0; // 0: own, N: others
@@ -124,7 +126,7 @@ int ZX_JOYSTICK = 1|2|16; // 0: no, |1: cursor/protek/agf, |2: kempston, |4: sin
 int ZX_AUTOFIRE = 0; // 0: no, 1: slow, 2: fast
 int ZX_AUTOPLAY = 0; // yes/no: auto-plays tapes based on #FE port reads
 int ZX_AUTOSTOP = 0; // yes/no: auto-stops tapes based on #FE port reads
-int ZX_RUNAHEAD = 0; // yes/no: improves input latency
+int ZX_RUNAHEAD = 0; // 0: no, 1: 1-frame run-ahead, 2: 2-frame run-ahead (improved input latency)
 int ZX_MOUSE = 1; // yes/no: kempston mouse
 int ZX_ULAPLUS = 2; // 0:classic, 1: ulaplus 64color mode, 2: ulaplus/ultrawide
 int ZX_GUNSTICK = 0; // yes/no: gunstick/lightgun @fixme: conflicts with kempston & kmouse
@@ -141,12 +143,14 @@ int ZX_KLMODE_PATCH_NEEDED = 0; // helper internal variable, must be init to mat
 
 int ZX_WAVES = 0; // 0: no, 1: yes
 int ZX_HORACE = 0; // 0: no, 1: player1 controlled (keys), 2: player2 controller (gamepad)
+int ZX_LOBBY = 0; // 0: no, 1: yes
+int ZX_PALETTE_PREVIEW = 0; // 0: no, 1: yes
 
 const char *ZX_FN_STR[] = {"ESC","F1","F2","F3","F4","F5","F6","F7","F8","F9","F10","F11","F12"};
 int ZX_FN[12+1] = {'GAME'}; // redefineable function keys. FN[0] = ESC, FN[1..12] = F1..F12
 
 const char *ZX_PAD_STR[] = {"⭠","⭢","⭡","⭣","\4A\7","\2B\7","\5X\7","\6Y\7","LB","RB","LT","RT","LS","RS","Bk","St"};
-int ZX_PAD[16] = {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB};  // redefineable gamepad keys
+int ZX_PAD[16] = {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB,'Z',TK_UP};  // redefineable gamepad keys
 int ZX_PAD_[16] = {0}; // temporary values while remapping. array not serialized
 
 const
@@ -154,19 +158,13 @@ char *ZX_TAB = "A"; // current game letter being browsed. may be a letter or spe
 char *ZX_TITLE = 0; // current titlebar
 char *ZX_MEDIA = 0; // current mounted game
 
-char *ZX_FOLDER_UNIX = 0;
-char *ZX_FOLDER_WINDOWS = 0;
-#ifdef _WIN32
-#define ZX_FOLDER ZX_FOLDER_WINDOWS
-#else
-#define ZX_FOLDER ZX_FOLDER_UNIX
-#endif
+char *ZX_FOLDER = 0;
 
 int   ZX_SHADED = 0; // is ZX_SHADER enabled or not
 char *ZX_SHADER = 0; // path to the custom shader file
 
 #define INI_OPTIONS_STR(X) \
-    X(ZX_FOLDER_UNIX) X(ZX_FOLDER_WINDOWS) X(ZX_TITLE) X(ZX_MEDIA) X(ZX_TAB) X(ZX_SHADER)
+    X(ZX_FOLDER) X(ZX_TITLE) X(ZX_MEDIA) X(ZX_TAB) X(ZX_SHADER)
 
 #define INI_OPTIONS_NUM(X) \
     X(ZX) \
@@ -184,7 +182,7 @@ char *ZX_SHADER = 0; // path to the custom shader file
     X(ZX_FASTTAPE) \
     /*X(ZX_BROWSER)*/ \
     X(ZX_ALTROMS) \
-    X(ZX_PALETTE) \
+    X(ZX_PALETTE) X(ZX_PALETTE_PREVIEW) \
     X(ZX_AUTOFIRE) \
     X(ZX_MULTIFACE) \
     X(ZX_FN[0]) X(ZX_FN[1]) X(ZX_FN[2]) X(ZX_FN[3]) X(ZX_FN[4]) X(ZX_FN[5]) \
@@ -192,7 +190,8 @@ char *ZX_SHADER = 0; // path to the custom shader file
     X(ZX_PAD[0]) X(ZX_PAD[1]) X(ZX_PAD[2]) X(ZX_PAD[3]) X(ZX_PAD[4]) X(ZX_PAD[5]) \
     X(ZX_PAD[6]) X(ZX_PAD[7]) X(ZX_PAD[8]) X(ZX_PAD[9]) X(ZX_PAD[10]) X(ZX_PAD[11]) \
     X(ZX_PAD[12]) X(ZX_PAD[13]) X(ZX_PAD[14]) X(ZX_PAD[15]) \
-    X(ZX_ZOOM) X(ZX_FULLSCREEN) X(ZX_WAVES) X(ZX_LENSLOK) X(ZX_SHADED) /*X(ZX_HORACE)*/
+    X(ZX_ZOOM) X(ZX_FULLSCREEN) X(ZX_WAVES) X(ZX_LENSLOK) X(ZX_SHADED) X(ZX_LOBBY) X(ZX_HORACE) \
+    X(ZX_BLUR) X(ZX_BLOOM)
 
 void logport(word port, byte value, int is_out);
 void outport(word port, byte value);
@@ -322,9 +321,9 @@ FDIDisk fdd[NUM_FDI_DRIVES];
 // medias
 uint64_t media_seek[16];
 
-enum { ALL_FILES = 0, GAMES_AND_ZIPS = 4*4, GAMES_ONLY = 7*4, TAPES_AND_DISKS_ONLY = 12*4, DISKS_ONLY = 16*4 };
+enum { ALL_FILES = 0, GAMES_AND_ZIPS = 5*4, GAMES_ONLY = 8*4, TAPES_AND_DISKS_ONLY = 13*4, DISKS_ONLY = 17*4 };
 int file_is_supported(const char *filename, int skip) {
-    const char *exts = ".fx .pok.scr.ay .gz .zip.rar.rom.sna.z80.rzx.szx.tap.tzx.pzx.csw.dsk.img.mgt.trd.fdi.scl.$b.$c.$d.";
+    const char *exts = ".fx .pal.pok.scr.ay .gz .zip.rar.rom.sna.z80.rzx.szx.tap.tzx.pzx.csw.dsk.img.mgt.trd.fdi.scl.$b.$c.$d.";
     const char *ext = strrchr(filename ? filename : "", '.');
     if( !ext ) return 0;
     char ext1[8]; snprintf(ext1, countof(ext1), "%s.", ext);
@@ -978,13 +977,15 @@ void sys_audio() {
         static float ay_sample1 = 0, ay_sample2 = 0; enum { ayumi_fast = 0 };
         static byte even = 255; ++even;
 
-        if( ZX_AY == 0 ) ay_sample1 = ay_sample2 = 0; // no ay
+        if( ZX_AY == 0 ) ay_sample = ay_sample1 = ay_sample2 = 0; // no ay
 
         if( ZX_AY == 1 ) if( even & 1 ) {  // half frequency
             ay38910_tick(&ay[0], output+1), ay_sample1 = ay_sample2 = ay[0].sample;
 
             if( ZX_PENTAGON )
             ay38910_tick(&ay[1], output+4), ay_sample2 = ay[1].sample;
+
+            ay_sample = (ay_sample1 + ay_sample2) * 0.5f; // both
         }
 
         if( ZX_AY == 2 ) if( !(even & 0x3F) ) { // 4/256 frequency. same as `even == 0 || even == 0x80`
@@ -992,9 +993,9 @@ void sys_audio() {
 
             if( ZX_PENTAGON )
             ay_sample2 = ayumi_render(&ayumi[1], ayumi_fast, 1, output+4) * 2;
-        }
 
-        ay_sample = (ay_sample1 + ay_sample2) * 0.5f; // both
+            ay_sample = (ay_sample1 + ay_sample2) * 0.5f; // both
+        }
     }
 
     if( do_audio && sample_ready ) {
@@ -1009,7 +1010,7 @@ void sys_audio() {
         //float digital = mix(0.5); // 70908/44100. 69888/44100. // ZX_TS/s); 22050 11025 44100
         //sample += digital * 1; // increase volume
 
-        audio_queue(sample, output);
+        audio_queue(sample, output, 1+(ZX&1));
     }
 }
 
@@ -2026,7 +2027,7 @@ void reset(unsigned FLAGS) {
     audio_reset();
 
     ula_reset();
-    palette_use(ZX_PALETTE, ZX_PALETTE ? 0 : 1);
+    palette_use(ZX_PALETTE);
 
     mouse_clip(0);
     mouse_cursor(1);
@@ -2427,6 +2428,7 @@ repeat:;
                     filename = va("%s", ptr + 10);
                     goto repeat;
                 }
+                else return 0; // cannot guess
             }
 
             // is it a zip? unzip & try to recurse...
@@ -2459,6 +2461,7 @@ repeat:;
 
                 // rinse and repeat
                 if( bin ) { if(ptr) free(ptr); ptr = bin; goto repeat; }
+                else return 0; // cannot guess
             }
 
             // is it a rar? unrar & try to recurse...
@@ -2491,6 +2494,7 @@ repeat:;
 
                 // rinse and repeat
                 if( bin ) { if(ptr) free(ptr); ptr = bin; goto repeat; }
+                else return 0; // cannot guess
             }
 
         // [4] from zxdata
@@ -2521,6 +2525,12 @@ int load(const char *filename, int model) { // `model`: explicit model to use, o
         if( load_shader(filename) ) {
             if( ZX_SHADER ) free(ZX_SHADER), ZX_SHADER = 0;
             return crt(shader), ZX_SHADER = strdup(filename), ZX_SHADED = 1;
+        }
+    }
+    if( strendi(filename, ".pal") ) {
+        if( pal_load(filename) ) { // .pal
+            palette_use(ZX_PALETTE = countof(ZXPalettes) - 1);
+            return 1;
         }
     }
 

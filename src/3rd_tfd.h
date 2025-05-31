@@ -2313,7 +2313,11 @@ wchar_t * tinyfd_colorChooserW(
 {
                 static wchar_t lResultHexRGB[8];
                 CHOOSECOLORW cc;
+#if 1 //< @r-lyeh
+                static COLORREF crCustColors[16] = {0};
+#else
                 COLORREF crCustColors[16];
+#endif
                 unsigned char lDefaultRGB[3];
                 int lRet;
 

@@ -14,15 +14,19 @@
 // gamepads, gamepad bindings, turbosound (turboAY), autofire, alt z80 rates, media selector,
 // border effects, border overscan, rainbow graphics, multicolor, HAL10H8 bugs, zoom x1..x4,
 // lenslok, resizeable, ultrawide ula, host keyboard, custom shaders, screenmate, tape counter,
-// stereo ABC/ACB,
+// stereo ABC/ACB, lobby chat,
 // glue sequential tzx/taps in zips (side A) -> side 1 etc)
 // sequential tzx/taps/dsks do not reset model
 // scan folder if dropped or supplied via cmdline
 
 // @todo:
+// [ ] X<3<3<3
+// [ ] bind all commands to cmdline: spectral -tv:0 --ULA=1 AY2
+// [ ] try duimon's bezels
+// [ ] audio sn76489
 // [ ] audio filters
 // [ ] read mags: concatenate all pags, and invoke external pdf viewer since our window resolution forbids reading hq text
-// [ ] phantom typist for autoload.dsk: rex, after the war re-imagined
+// [ ] phantom typist to autoload some .dsks: rex, after the war re-imagined
 // [ ] pok: mask menu + undo
 // [ ] zx: multiface1, multiface128/genie128, multiface3
 // [ ] autofps: exolon/alien8 @ 50fps
@@ -59,30 +63,26 @@
 
 // @fixme:
 // [ ] zxdb: afterburner/arkanoid: cheats
-// [x] ui_print(): dims not very accurate when ui_monospaced==0. see chasehq2 instructions boundings
 // [ ] mp3: @leak
 // [ ] .sav: mask3.sav, cybernoid2.sav, jack2.sav
-// [ ] .sav: 2bits off for tapes? (close the app while attribs for cauldron2 screen$ are dumped. restart the emulator; tape_ticks/ticks?)
+// [ ] .sav: 2bits off for tapes? (close the app while attribs for cauldron2 screen$ being loaded. restart the emulator; tape_ticks/ticks?)
+// [x] ui_print(): dims not very accurate when ui_monospaced==0. see chasehq2 instructions boundings
 // [x] DEV remove beep during .tzx debugprints to console - Twister(zxdb), LaAbadiaDelCrimen (turbo), AndyCapp(zxdb)
 
 // @fixme
+// [ ] la abadia del crimen > maps
 // [ ] el cartero > Libreria_de_Software_Spectrum_issue_12 > B-4
 // [ ] contention+pzx: lonewolf128k.pzx
 // [ ] flashing console window while opening https links (windows, release builds), probably recording too (popen)
 // [ ] load snowhold.tap, somehow I==0x40 can last after reset/app restart
 // [ ] dsk sideB : spaceharrier2 and myth cases
 // [ ] tzx sideB : alien syndrome (Dro), alien syndrome (RAD)
-// [x] turborom + bleepload (sentinel, sidewize, crosswize, jaws)
 // [ ] pzx/csw/gdb + turborom
 // [ ] TTRacer WITHOUT turborom
 // [ ] combatschool.ay
 // [ ] robocop.ay + oscilloscopes in AY2 mode. space harrier 2 is fine (??)
-// [x] too much audio latency?
 // [ ] p128 bottom line (128 menu)
 // [ ] lower bottom megashock/
-// [x] 48irons.trd
-// [x] p128 .sna
-// [x] KLmode broken
 // [ ] linux polyfill (does not work yet)
 // [ ] contention: gauntlet3.dsk
 // [ ] floating: arkanoid way too fast, sidewize too slow and/or blinks
@@ -93,6 +93,12 @@
 // [ ] gallery: wordwrap needed when thumbnail names are too large: "Sherlock Holmes: The Lamberley Mystery (1990)(Zenobi Software)"
 // [ ] mouse: wheel linux (@juntelart)
 // [ ] mouse: wheel inverted (@hexaee, @korb)
+// [x] exploding fist+
+// [x] turborom + bleepload (sentinel, sidewize, crosswize, jaws)
+// [x] too much audio latency?
+// [x] 48irons.trd
+// [x] p128 .sna
+// [x] KLmode broken
 // [x] zxdb platoon.tap.zip with .txt file in zipentry #0
 // [x] zxdb: do not infer zxdb model from local files with entries >1 hits. eg, jaws.tap
 // [x] zxdb: improve 48/128 model detection
@@ -116,6 +122,22 @@
 // title (model)                | detection | contended mem:rainbow/multicolor | contended io:overscan/border effects | flick:floating bus
 // defenders of the earth (+3)                                                                                ✓
 //
+
+// proposal for game mappings
+//
+//   [P]lay [K]empston [F]uller Sinclair[1] Sinclair[2] [C]ursor key[B]oard [_]others
+//   +
+//   KEY
+//
+// as many times as needed, then default assigned keys in following order:
+//
+//   UpDownLeftRightFire1Fire2Fire3... Pause Break Resume
+//
+// Example, atic atac: B1 K2 C3 P0 _456 ERQWTZ Space
+// becomes,
+//
+// aticatac.joy:
+// P0B1K2C3_456 ERQWTZ Space
 
 #if 0
 // mp3 (see: https://worldofspectrum.net/pub/sinclair/music/bonustracks/)
@@ -213,18 +235,25 @@
 // [ ] XL1 (Compilation)
 #endif
 
-#define SPECTRAL "v1.11"
+#define SPECTRAL "v1.12"
 
+#ifndef DEV
 #if NDEBUG >= 2
 #define DEV 0
-#define ifdef_DEV(t,...)  __VA_ARGS__
-#define ifndef_DEV(t,...) t
 #else
 #define DEV 1
-#define ifdef_DEV(t,...)  t
-#define ifndef_DEV(t,...) __VA_ARGS__
+#endif
 #endif
 
+#if DEV
+#define ifdef_DEV(t,...)  t
+#define ifndef_DEV(t,...) __VA_ARGS__
+#else
+#define ifdef_DEV(t,...)  __VA_ARGS__
+#define ifndef_DEV(t,...) t
+#endif
+
+#define DEV_HIGHLIGHT_VRAM_CHANGES (DEV & 2)
 
 
 // ref: http://www.zxdesign.info/vidparam.shtml
@@ -235,7 +264,7 @@
 // @todo:
 // [ ] animated states
 // [ ] zxdb on hover: show animated state if exists. show loading screen otherwise.
-// [ ] auto-saves, then F11 to rewind. use bottom bar
+// [ ] auto-saves, then F11 to rewind. use bottom bar. when loading, ask: restart or continue?
 // [ ] live coding disasm (like bonzomatic)
 // [ ] convert side-b/mp3s into voc/pulses
 // [ ] embed torrent server/client to mirror the WOS/ZXDB/NVG/Archive.org distros
@@ -249,12 +278,12 @@
 // - turn autoplay=off
 // - wait silently for any key/joy button to be pressed, then turn autoplay=on again
 //
-// profiler (auto)
+// z80 profiler (auto)
 // -           []
 // -   []      [][]
 // - [][][][][][][][][][] ...
 // - 4000 4800 5000 5800  ...
-// profiler (instrumented)
+// z80 profiler (instrumented)
 // IN TS
 // OUT PROFILER+0, COLOR; OUT PROFILER+1, TS_DIFF
 // profiler (instrumented, other; ticks get accumulated within a second; border is not rendered as usual)
@@ -341,8 +370,11 @@ extern struct Tigr* app;
 #include "app.h"
 
 enum { OVERLAY_ALPHA = 96 };
-window *app, *canvas, *ui, *dbg, *overlay, *dialog, *irc; 
-int do_overlay, do_irc;
+window *app, *canvas, *ui, *dbg, *overlay, *dialog;
+int do_overlay;
+
+#include "app_chat.h"
+//#include "res/maps/maps.h" // extra gamemap infos from pavero's site
 
 enum {
     SLOT_PNG,
@@ -355,31 +387,32 @@ uint16_t file_counter(unsigned slot) {
 }
 
 int screenshot(const char *filename, Tigr *app) {
+    // escape invalid chars in filenames
+    filename = va("%s", filename);
+    for( const char *forbidden = "<>:\"/\\|?*"; *forbidden; ++forbidden ) {
+        char mask[2] = "-"; mask[0] = *forbidden;
+        replace((char*)filename, ":", "-");
+    }
+
     uint16_t count = file_counter(SLOT_PNG);
-
-#if 0
-    time_t timer = time(NULL);
-    struct tm* tm_info = localtime(&timer);
-
-    char stamp[32];
-    strftime(stamp, 32, "%Y%m%d %H%M%S", tm_info);
-
-    extern window* app;
-    int ok1 = writefile(va("%s %s %04x.scr", filename, stamp, count), VRAM, 6912);
-    int ok2 = tigrSaveImage(va("%s %s %04x.png", filename, stamp, count), app);
-#else
     FILE *png = fopen8(va("%s-%04x.png", filename, count), "wb");
     int ok1 = tigrSaveImageFile(png, app); if(png) fclose(png);
     int ok2 = writefile(va("%s-%04x.scr", filename, count), VRAM, 6912);
-#endif
 
     return ok1 && ok2;
 }
 
 int save_config() {
+    if( ZX_PLAYER ) return 1;
+
+    // convert absolute to relative. so they survive windows/unix cross-saves.
+    if(ZX_MEDIA  && ZX_MEDIA[0] ) ZX_MEDIA  = strdup(relpath(ZX_MEDIA,cwd())); // @leak
+    if(ZX_FOLDER && ZX_FOLDER[0]) ZX_FOLDER = strdup(relpath(ZX_FOLDER,cwd())); // @leak
+    //if(ZX_SHADER && ZX_SHADER[0]) ZX_SHADER = strdup(relpath(ZX_SHADER,cwd())); // @leak
+
     mkdir(".Spectral", 0777);
     int errors = 0;
-    if( !ZX_PLAYER ) for( FILE *fp = fopen(".Spectral/Spectral.ini", "wt"); fp; fclose(fp), fp = 0 ) {
+    for( FILE *fp = fopen(".Spectral/Spectral.ini", "wt"); fp; fclose(fp), fp = 0 ) {
         #define INI_SAVE_NUM(opt) errors += fprintf(fp, "%s=%d\n", #opt, opt) != 2;
         #define INI_SAVE_STR(opt) errors += fprintf(fp, "%s=%s\n", #opt, opt?opt:"") != 2;
         INI_OPTIONS_NUM(INI_SAVE_NUM)
@@ -405,6 +438,25 @@ int load_config() {
         extern const char* cmdarg;
         ZX_PENTAGON = ZX & 1; ZX &= ~1;
         if(ZX_FOLDER && ZX_FOLDER[0] > 32) cmdkey = 'SCAN', cmdarg = ZX_FOLDER;
+    }
+    {
+        int size;
+        // load custom shader. revert option if file cannot be loaded or does not exist
+        for( unsigned char *fx = readfile(".Spectral/Spectral.fx", &size); fx; free(fx), fx = 0 ) {
+            ZX_SHADED *= !load_shaderbin(fx, size);
+        }
+        ZX_SHADED *= !!size;
+        // load custom palette. revert option if file cannot be loaded or does not exist
+        for( unsigned char *pal = readfile(".Spectral/Spectral.pal", &size); pal; free(pal), pal = 0 ) {
+            ZX_PALETTE *= !pal_loadbin(pal, size);
+        }
+        ZX_PALETTE *= !!size;
+    }
+    {
+        // convert relative to absolute paths
+        if(ZX_MEDIA  && ZX_MEDIA[0] ) ZX_MEDIA  = strdup(abspath(ZX_MEDIA)); // @leak
+        if(ZX_FOLDER && ZX_FOLDER[0]) ZX_FOLDER = strdup(abspath(ZX_FOLDER)); // @leak
+        //if(ZX_SHADER && ZX_SHADER[0]) ZX_SHADER = strdup(abspath(ZX_SHADER)); // @leak
     }
     return !errors;
 }
@@ -439,6 +491,7 @@ bool load_overlay(const void *data, int len) {
 
 int desktop_w, desktop_h;
 int app_wouldfit(int zoom) { // given some zoom level, check whether an upcoming window would fit desktop size
+    if(zoom>4) zoom=8;
     return 1; // unlock all zoom levels unconditionally
     float scale = 0.90; // 0.90 to allow for some boundary clipping
     return (zoom * _256 * scale) <= desktop_w && (zoom * _192 * scale) <= desktop_h;
@@ -448,12 +501,27 @@ int app_resize() {
     if(dbg) tigrFree(dbg);          dbg = tigrBitmap(_320, _240);
     if(overlay) tigrFree(overlay);  overlay = tigrBitmap(_320, _240); do_overlay = 0;
     if(dialog) tigrFree(dialog);    dialog = tigrBitmap(_320, _240);
-    if(irc) tigrFree(irc);          irc = tigrBitmap(_320, _240);
     tigrClear(app, tigrRGB(0,0,0));
-    tigrClear(irc, tigrRGBA(0,0,0,128));
     return 1;
 }
+void app_apply_shader() {
+    if( ZX_SHADED && ZX_CRT ) ZX_SHADED = ZX_CRT = 0, alert("Simultaneous shaders are not yet allowed.");
+    if( ZX_SHADED ) ZX_SHADED = !!is_file(".Spectral/Spectral.fx");
+    if( ZX_SHADED ) ZX_CRT = 0;
+    if( ZX_CRT ) ZX_SHADED = 0;
+    crt(ZX_SHADED ? shader : ZX_CRT ? shader_spectral : shader_tigr);
+}
+void app_browse_shader() {
+    const char *file = app_loadfile();
+    if( file && strendi(file, ".fx") ) {
+        if( load_shader(file) ) {
+            ZX_SHADED = 1;
+            app_apply_shader();
+        }
+    }
+}
 int app_create(const char *title, int fs, int zoom) {
+    if(zoom>4) zoom=8;
     tigrGetDesktop(&desktop_w, &desktop_h);
     while( !app_wouldfit(zoom) ) zoom--;
     zoom += !zoom;
@@ -471,7 +539,7 @@ int app_create(const char *title, int fs, int zoom) {
                 free(ZX_SHADER), ZX_SHADER = 0, ZX_SHADED = 0;
         #endif
 
-        crt(ZX_SHADED ? shader : ZX_CRT ? shader_spectral : shader_tigr);
+        app_apply_shader();
 
         //
         app_resize();
@@ -602,7 +670,7 @@ const char *commands[] = {
     "R",
     " REC:VideoREC\nRecords session to mp4 file (no sound)",
     "🯇",
-    " RUN:Toggle Run-Ahead\n0:off, 1:improved input latency",
+    " RUN:Toggle Run-Ahead\n0:off, 1:reduced input latency, 2:improved input latency",
     "⭣",
     "SAVE:Save Game",
     FOLDER_STR,
@@ -740,7 +808,26 @@ void input() {
 
 #if 1 // ZX_USE_HOST_KEYBOARD
         if( PC(cpu) < 0x4000 && is_basic_mode() ) {
-            int chr = key_char(0);
+            int chr = 0;
+
+            // read clipboard (slowly)
+            if( app_clipboard ) {
+                static char *utf8 = 0;
+                if( !utf8 ) utf8 = app_clipboard;
+
+                static byte delay = 0; delay = (delay+1) & 7; if(!delay)
+                while( !chr && *utf8 ) // bypass bad encodings
+                    utf8 = (char *)extract_utf32(utf8, &chr);
+
+                if( !*utf8 )
+                    free(app_clipboard), app_clipboard = 0, utf8 = 0;
+            }
+            
+            // read keyboard
+            if( !chr ) {
+                chr = key_char(0);
+            }
+
             // special keys
             if( !chr ) {
                 //if(keys[TK_ESCAPE])    ZXKey(ZX_SHIFT), ZXKey(ZX_1);
@@ -762,7 +849,7 @@ void input() {
                 }
             }
             // regular chars
-            if( chr ) for( const char *sym = "0123456789abcdefghijklmnopqrstuvwxyz \n", *peek = strchr(sym, chr); peek; peek = 0, chr = 0) {
+            if( chr ) for( const char *sym = "0123456789abcdefghijklmnopqrstuvwxyz " ifdef(win32, "\n", "\r"), *peek = strchr(sym, chr); peek; peek = 0, chr = 0) {
                 ZXKey(ZX_0 + (peek - sym));
             }
             if( chr ) for( const char *sym = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", *peek = strchr(sym, chr); peek; peek = 0, chr = 0) {
@@ -868,7 +955,7 @@ void draw_ui() {
     if( m.cursor == 0 ) {
         m.x = _320/2, m.y = _240/2; // ignore mouse; already clipped & hidden (in-game)
     } else {
-        if( !browser ) mouse_cursor(1);
+        if( !browser ) mouse_cursor(ZX_GUNSTICK ? 4 : 1);
     }
 
     // ui animation
@@ -935,6 +1022,15 @@ void draw_ui() {
             ['X'] = "Sound Effects: ",
             ['W'] = "Story Writing: ",
         };
+
+#if 0
+        int starred = 0;
+        int flagged = 0, color = flagged == 0 ? 7 : flagged == 3 ? 4 : flagged == 1 ? 6 : 2;
+        if( ui_click("-Toggle compatibility flags-\n\2fail\7, \6warn\7, \4good", va("%c%s", color, flagged == 0 || flagged == 3 ? "✓":"╳")) )
+            ;
+        if( ui_click("-Toggle bookmark-", "\f\f\f\f" LOVE2_STR "\f\f" LOVE1_STR  "\f\f" LOVE0_STR "\n") )
+            ;
+#endif
 
         // zxdb
         if( ui_click(va("- %s -", ZXDB.ids[0]), "ZXDB"));
@@ -1023,7 +1119,9 @@ void draw_ui() {
             }
         }
         if( zxdb_url(ZXDB, "map") && ui_click("- Toggle Game Map -", "Maps\n")) {
-            for( char *data = zxdb_download(ZXDB,zxdb_url(ZXDB, "map"), &len); data; free(data), data = 0 ) {
+            const char *url = zxdb_url(ZXDB, "png|map"); // check colorful png maps first
+            if(!url) url = zxdb_url(ZXDB, "map"); // else try regular jpg scanned maps
+            for( char *data = zxdb_download(ZXDB,url,&len); data; free(data), data = 0 ) {
                 do_overlay ^= 1;
                 tigrClear(overlay, !do_overlay ? tigrRGBA(0,0,0,0) : tigrRGBA(0,0,0,OVERLAY_ALPHA));
                 if( do_overlay ) {
@@ -1104,11 +1202,12 @@ void draw_ui() {
 
         ui_at(ui,chr_x - 4/*ui_x - 8*/,ui_y + 11*3);
 
-        const char *models[] = { [1]=" 16 ",[3]=" 48 ",[8]="128K",[9]="P128",[12]=" +2 ",[13]=" +2A",[18]=" +3 " };
+        const char *models[] = { [1]=" 16",[3]=" 48",[8]="128K",[9]="P128",[12]=" +2",[13]="+2A",[18]=" +3" };
         ui_y--;
-        if( ui_click("- Clear Medias -", "") ) cmdkey = 'WIPE';
+        if( ui_click("- Clear Medias -", "\f\f") ) cmdkey = 'WIPE';
+        if( ui_click(rmb_held*23+"- Magic button (NMI) -\0- Magic button (NMI) -\nGenerates a Non-Maskable Interrupt", "\f") ) cmdkey = 'NMI';
         ui_y++;
-        if( ui_click(rmb_held*17+"- Toggle Model -\0- Toggle Model -\n16, 48, 128, +2, +2A, +3, Pentagon\n", "%s%s",models[(ZX/16)|ZX_PENTAGON],ZX_ALTROMS ? "!":"")) if(rmb_up) cmdkey = 'MODE'; else
+        if( ui_click(rmb_held*17+"- Toggle Model -\0- Toggle Model -\n16, 48, 128, +2, +2A, +3, Pentagon\n", "%s%s\n",models[(ZX/16)|ZX_PENTAGON],ZX_ALTROMS ? "!":"")) if(rmb_up) cmdkey = 'MODE'; else
         {
             int mode = ZX + ZX_PENTAGON;
             ui_dialog_new("- Toggle Model -");
@@ -1120,9 +1219,6 @@ void draw_ui() {
             ui_dialog_option(1,(mode!=300)+"\005+3\n", "+2A compatible with built-in 3\" floppy disk drive", 'MODE',"300");
             ui_dialog_option(1,(mode!=129)+"\005Pentagon\n", "Soviet ZX Spectrum 128 clone with BetaDisk drive", 'MODE',"129");
         }
-        ui_y-=1;
-        if( ui_click(rmb_held*23+"- Magic button (NMI) -\0- Magic button (NMI) -\nGenerates a Non-Maskable Interrupt", "\f\n") ) cmdkey = 'NMI';
-        ui_y+=1;
 
         int tableHz[] = {[50]=0,[60]=1,[100]=2,[120]=3,[150]=4,[200]=5,[400]=6};
         if( ui_click(rmb_held*21+"- Toggle Z80 speed -\0- Toggle Z80 speed -\n0:25Hz, 1:30Hz, 2:50Hz, 3:60Hz, 4:75Hz, 5:7MHz, 6:14MHz", "🗲\f%d", tableHz[(int)ZX_FPSMUL]) ) if(rmb_up) cmdkey = 'CPU'; else
@@ -1145,14 +1241,14 @@ void draw_ui() {
             ui_dialog_option(1,(ZX_ULAPLUS!=0)+"\5Classic ULA\n",NULL,'ULA',"0");
         }
 
-        if( ui_click(rmb_held*16+"- Toggle Zoom -\0- Toggle Zoom -\nx1, x2, x3, x4", "X\f%d",ZX_ZOOM+!ZX_ZOOM) ) if(rmb_up) cmdkey = 'ZOOM'; else
+        if( ui_click(rmb_held*16+"- Toggle Zoom -\0- Toggle Zoom -\nx1, x2, x3, x4, x8", "X\f%d",ZX_ZOOM>4?8:ZX_ZOOM+!ZX_ZOOM) ) if(rmb_up) cmdkey = 'ZOOM'; else
         {
             int w, h; tigrGetDesktop(&w, &h);
 
             ui_dialog_new("- Toggle Zoom -");
-            for( int i = 1; i <= 4; ++i ) {
+            for( int i = 1; i <= 5; ++i ) {
                 if( app_wouldfit(i) )
-                    ui_dialog_option(1,va((ZX_ZOOM!=i)+"\005X%d\n",i), NULL,'ZOOM',va("%d",i));
+                    ui_dialog_option(1,va((ZX_ZOOM!=i)+"\005X%d\n",i>4?8:i), NULL,'ZOOM',va("%d",i));
             }
         }
         ui_x += 8;
@@ -1165,21 +1261,27 @@ void draw_ui() {
 
         if( ui_click(rmb_held*19+"- Toggle TV mode -\0- Toggle TV mode -\n0:off, 1:crt, 2:rf, 3:rf+crt, 4:ext", "▒\f%d", ZX_SHADED ? 4 : (ZX_RF << 1 | ZX_CRT)) ) if(rmb_up) cmdkey = 'TV'; else
         {
-            int mode = ZX_SHADED ? 4 : (ZX_RF << 1 | ZX_CRT);
             ui_dialog_new("- Toggle TV mode -");
-            if(ZX_SHADER && ZX_SHADER[0])
-            ui_dialog_option(1,(mode!=4)+"\5<External custom shader\n",NULL,'TV',"4");
-            ui_dialog_option(1,(mode!=3)+"\5<RF and CRT (extra CPU cost)\n",NULL,'TV',"3");
-            ui_dialog_option(1,(mode!=2)+"\5<RF only (extra CPU cost)\n",NULL,'TV',"2");
-            ui_dialog_option(1,(mode!=1)+"\5<CRT only\n",NULL,'TV',"1");
-            ui_dialog_option(1,(mode!=0)+"\5<Crisp\n",NULL,'TV',"0");
+
+            ui_dialog_slider(1,"<Blur",NULL,&ZX_BLUR,0,100);
+            ui_dialog_separator();
+            ui_dialog_separator();
+
+            ui_dialog_slider(1,"<Bloom",NULL,&ZX_BLOOM,0,100);
+            ui_dialog_separator();
+            ui_dialog_separator();
+
+            ui_dialog_checkbox2(&ZX_RF,"<RF mode (extra CPU cost)\n","- Enable RF mode -",app_apply_shader);
+            ui_dialog_checkbox2(&ZX_CRT,"<CRT shader\n","- Enable CRT mode -",app_apply_shader);
+            ui_dialog_checkbox2(&ZX_SHADED,"<External shader ","- Use external shader -",app_apply_shader);
+            ui_dialog_option(1|4,FOLDER_STR"\n\n","- Browse external .fx shader -",'SHAD',NULL);
+
+            ui_dialog_ok();
         }
         ui_x += 8;
-        if( ui_click(rmb_held*19+"- Toggle Palette -\0- Toggle Palette -\n0:Spectral, X:others", "\f%1x\n", ZX_PALETTE) ) if(rmb_up) cmdkey = 'PAL'; else
+        if( ui_click(rmb_held*19+"- Toggle Palette -\0- Toggle Palette -\n0:Spectral, X:others", "\f%c\n", ZX_PALETTE + (ZX_PALETTE < 10 ? '0' : 'a'-10) ) ) if(rmb_up) cmdkey = 'PAL'; else
         {
-            ui_dialog_new("- Toggle Palette -");
-            for( int i = 0; i < countof(ZXPaletteNames); ++i)
-            ui_dialog_option(1,va((ZX_PALETTE!=i)+"\005%s\n",ZXPaletteNames[i]+2),NULL,'PAL',va("%d",i));
+            cmdkey = 'PAL0';
         }
 
         if( ui_click(rmb_held*19+"- Toggle AY core -\0- Toggle AY core -\n0:off, 1:fast, 2:accurate", /*𝄞*/"♬\f%d",ZX_AY) ) if(rmb_up) cmdkey = 'AY'; else
@@ -1241,11 +1343,12 @@ void draw_ui() {
             ui_dialog_option(1,( ZX_MOUSE)+"\5No mouse\n",NULL,'MICE',"0");
         }
         ui_x += 8;
-        if( ui_click(rmb_held*21+"- Toggle Run-Ahead -\0- Toggle Run-Ahead -\n0:off, 1:improved input latency", !ZX_RUNAHEAD ? "🯆\f0\n" : "🯇\f1\n") ) if(rmb_up) cmdkey = 'RUN'; else
+        if( ui_click(rmb_held*21+"- Toggle Run-Ahead -\0- Toggle Run-Ahead -\n0:off, 1:reduce latency, 2:improve latency", "🯆\f%d\n", ZX_RUNAHEAD) ) if(rmb_up) cmdkey = 'RUN'; else
         {
             ui_dialog_new("- Toggle Run-Ahead -");
-            ui_dialog_option(1,(!ZX_RUNAHEAD)+"\5Improved input latency (extra CPU cost)\n",NULL,'RUN',"1");
-            ui_dialog_option(1,( ZX_RUNAHEAD)+"\5Normal input latency\n",NULL,'RUN',"0");
+            ui_dialog_option(1,(ZX_RUNAHEAD!=2)+"\5Improved input latency (3x CPU cost)\n",NULL,'RUN',"2");
+            ui_dialog_option(1,(ZX_RUNAHEAD!=1)+"\5Reduced input latency (2x CPU cost)\n",NULL,'RUN',"1");
+            ui_dialog_option(1,(ZX_RUNAHEAD!=0)+"\5Normal input latency\n",NULL,'RUN',"0");
         }
 
         if( ui_click(rmb_held*31+"- Toggle 48-BASIC input mode -\0- Toggle 48-BASIC input mode -\nK:token based, L:letter based", "~%c~\f%d", ZX_KLMODE ? 'L' : 'K', ZX_KLMODE) ) if(rmb_up) cmdkey = 'KL'; else
@@ -1262,6 +1365,27 @@ void draw_ui() {
             ui_dialog_option(1,( !issue2)+"\5Earlier keyboard\n",NULL,'KEYB',"2");
         }
 
+        if( ui_click(rmb_held*24+"- Translate game menu -\0- Translate game menu -\n0:off, 1:poke game menu into English", "T\f%d", ZX_AUTOLOCALE)) if(rmb_up) cmdkey = 'TENG'; else
+        {
+            ui_dialog_new("- Translate game menu -");
+            ui_dialog_option(1,1/*(!ZX_AUTOLOCALE)*/+"\5Poke translation\n","Poke game menu into English",'TENG',"1");
+            ui_dialog_option(1,1/*( ZX_AUTOLOCALE)*/+"\5Cancel\n",NULL,'TENG',"0");
+        }
+        ui_x += 8;
+        if( ui_click("- Toggle Lenslok -\nFocus on the center of the encoded image", "𜲌\f%d\n", ZX_LENSLOK)) cmdkey = 'LENS';
+
+        if( ui_click("- Paste clipboard contents -", "~🮴~\f0") ) if(rmb_up) cmdkey = 'CLIP'; else
+        {
+            ui_dialog_new("- Paste clipboard contents? -");
+            ui_dialog_option(1,1/*(!ZX_AUTOLOCALE)*/+"\5Paste\n","Paste clipboard contents",'CLIP',"1");
+            ui_dialog_option(1,1/*( ZX_AUTOLOCALE)*/+"\5Cancel\n",NULL,0,0);
+        }
+        ui_x += 8;
+        if( ui_click("- Toggle chat/lobby -", "%s\f%d\n", ZX_LOBBY && ZXFlashFlag ? "":"", ZX_LOBBY) ) if(rmb_up) cmdkey = 'CHAT'; else
+        {
+            cmdkey = 'CHAT';
+        }
+
         if( ui_click(rmb_held*20+"- Toggle FastLoad -\0- Toggle FastMedia -\n0:off, 1:faster media loading", "\f%d", ZX_FASTTAPE )) if(rmb_up) cmdkey = 'FAST'; else
         {
             ui_dialog_new("- Toggle FastLoad -");
@@ -1275,15 +1399,6 @@ void draw_ui() {
             ui_dialog_option(1,(!ZX_TURBOROM)+"\5Turbo ROM loader\n",NULL,'TURB',"1");
             ui_dialog_option(1,( ZX_TURBOROM)+"\5Compatible ROM loader\n",NULL,'TURB',"0");
         }
-
-        if( ui_click(rmb_held*24+"- Translate game menu -\0- Translate game menu -\n0:off, 1:poke game menu into English", "T\f%d", ZX_AUTOLOCALE)) if(rmb_up) cmdkey = 'TENG'; else
-        {
-            ui_dialog_new("- Translate game menu -");
-            ui_dialog_option(1,1/*(!ZX_AUTOLOCALE)*/+"\5Poke translation\n","Poke game menu into English",'TENG',"1");
-            ui_dialog_option(1,1/*( ZX_AUTOLOCALE)*/+"\5Cancel\n",NULL,'TENG',"0");
-        }
-        ui_x += 8;
-        if( ui_click("- Toggle Lenslok -\nFocus on the center of the encoded image", "𜲌\f%d\n", ZX_LENSLOK)) cmdkey = 'LENS';
 
 #if DEV
         if( ui_click("- Toggle DevTools -", "d\f%d\n", ZX_DEVTOOLS)) cmdkey = 'DEVT';
@@ -1651,6 +1766,7 @@ int main() {
 
     // init embedded zxdb (medium priority)
     // also change app behavior to ZX_PLAYER if embedded games are detected.
+    if( !ZX_PLAYER )
     {
         int embedlen; char *embed;
         for( unsigned id = 0; (embed = embedded(id, &embedlen)); ++id ) {
@@ -1672,6 +1788,7 @@ int main() {
 
     // init embedded zxdb as resource (low priority)
     #if _WIN32
+    if( !ZX_PLAYER )
     {
         HMODULE hModule = NULL;
         HRSRC resourceInfo = FindResourceA(hModule, "ZXDBData", "CUSTOMDATA");
@@ -1691,9 +1808,10 @@ int main() {
 
     // fixed settings on zxplayer builds
     if( ZX_PLAYER ) {
-        ZX_RF = 1;
-        ZX_CRT = 1;
+        ZX_RF = strstri(__argv[0], "-rf") ? 1 : 0;
+        ZX_CRT = strstri(__argv[0], "-crt") ? 1 : 0;
         ZX_HORACE = 0;
+        ZX_PALETTE = 4; // vivid
     }
 
     // prepare title based on argv[0]
@@ -1757,7 +1875,7 @@ int main() {
 
         // refresh postfx + user shader too
         ZX_SHADED = shaded;
-        crt(ZX_SHADED ? shader : ZX_CRT ? shader_spectral : shader_tigr);
+        app_apply_shader();
     }
 
     // main loop
@@ -1793,10 +1911,11 @@ int main() {
 
 #if 1
         // 4 parameters in our shader. we use parameters[0] to track time
-        if( ZX_CRT )
-        tigrSetPostFX(app, (ticks / (69888 * 50.)), -mouse_offsets()[0],-mouse_offsets()[1], (ZXPaletteNames[ZX_PALETTE][0] - '0') * 0.094444 );
-        else
-        tigrSetPostFX(app, 0, 0,0,1); // app->w,app->h,1);
+        tigrSetPostFX(app, (ticks / (69888 * 50.)), -mouse_offsets()[0],-mouse_offsets()[1], 0);
+
+        float blur = ZX_BLUR/100.;
+        float bloom = ZX_BLOOM/100.; bloom = bloom * bloom + 1;
+        tigrSetPostFX2(app, bloom,blur,0,0 );
 
         // update background color so it matches. this is especially visible during fullscreen
         glColor[0] = glColor[1] = glColor[2] = 0, glColor[3] = 1;
@@ -1884,23 +2003,147 @@ int main() {
         static byte counter = 0; // flip flash every 16 frames @ 50hz
         if( !((++counter) & 15) ) if(do_flashbit) ZXFlashFlag ^= 1;
 
+
+#if 0 // needed for outlines, attrib clash removal and/or to highlight vram changes
+static char VRAM0[6912];
+static unsigned *r0, *r1;
+r0 = realloc(r0, _256 * _192 * 4);
+r1 = realloc(r1, _256 * _192 * 4);
+int cond = key_pressed('X'); static int counter_ = 0; cond |= counter_++ < 10;
+if(cond)
+memcpy(VRAM0, VRAM, 6912),
+memcpy(r0, canvas->pix, _256*_192*4);
+#endif
+
+
 if( do_runahead == 0 ) {
         do_audio = 1;
         frame(do_drawmode, do_sim); //media_accelerated ? (frame%50?0:1) : 1 );
 } else {
         // runahead:
-        // - https://near.sh/articles/input/run-ahead https://www.youtube.com/watch?v=_qys9sdzJKI // https://docs.libretro.com/guides/runahead/
+        // - https://near.sh/articles/input/run-ahead 
+        // - https://web.archive.org/web/20200322151707/https://byuu.net/input/run-ahead
+        // https://www.youtube.com/watch?v=_qys9sdzJKI 
+        // https://docs.libretro.com/guides/runahead/
 
-        do_audio = 1;
-        frame(-1, do_sim);
+        do_audio = 0;
+        int do_video = -1;
+
+        frame(do_video, do_sim);
 
         quicksave(10);
 
-        do_audio = 0;
-        frame(do_drawmode, do_sim);
+        if( do_runahead > 1 )
+           frame(do_video, do_sim); // repeat for 2-frame runaheads, ...
+        // frame(do_video, do_sim); // repeat for 3-frame runaheads, ...
+        // frame(do_video, do_sim); // repeat for 4-frame runaheads, etc.
+
+        do_audio = 1;
+        do_video = do_drawmode;
+        frame(do_video, do_sim); // final frame does video+audio
 
         quickload(10);
 }
+
+
+#if 0 // DEV_HIGHLIGHT_VRAM_CHANGES
+    unsigned changed = memcmp(VRAM0, VRAM, 6912);
+    if( changed ) {
+
+        static byte *bit2;
+        {
+            bit2 = realloc(bit2, _256*_192);
+            memset(bit2,0,_256*_192);
+
+            // isolate moving objects: subtract frame1-frame0
+            for( int y = 0; y < 192; ++y ) {
+                byte *pixels0=VRAM0+SCANLINE(y);
+                byte *pixels1=VRAM +SCANLINE(y);
+
+                int offs = _32 + (y+_24) * _256;
+                for( int x = 0; x < 32; ++x, offs += 8 ) {
+                    int mask = pixels0[x] ^ pixels1[x];
+                    bit2[offs+0] = (mask & 0x80) >> 7;
+                    bit2[offs+1] = (mask & 0x40) >> 6;
+                    bit2[offs+2] = (mask & 0x20) >> 5;
+                    bit2[offs+3] = (mask & 0x10) >> 4;
+                    bit2[offs+4] = (mask & 0x08) >> 3;
+                    bit2[offs+5] = (mask & 0x04) >> 2;
+                    bit2[offs+6] = (mask & 0x02) >> 1;
+                    bit2[offs+7] = (mask & 0x01) >> 0;
+                }
+            }
+
+#if 1
+            // dilate > outline > floodfill > erode
+            byte *dilated = s2o_dilate((byte*)bit2, _256, _192);
+            byte *outlined = s2o_outline(dilated, _256, _192);
+
+            if(0) // visualize
+            for( int i = 0; i < _192 * _240; ++i)
+                if( outlined[i] ) canvas->pix[i].rgba = ZXPalette[1];
+
+            s2o_floodfill(outlined, _256, _192);
+            byte *eroded = s2o_erode(outlined, _256, _192);
+
+            free(dilated);
+            free(outlined);
+            // free(eroded);
+
+            free(bit2);
+            bit2 = eroded;
+#else
+            bit2 = fill_closed_outline_shapes(bit2, _256, _192);
+            //byte *bit3 = s2o_safe_dilate_interior_white(bit2, _256, _192);
+            byte *bit3 = s2o_morph_close_white(bit2, _256, _192);
+            bit3 = fill_enclosed_black_regions(bit3, _256, _192);
+            free(bit2);
+            bit2 = bit3;
+#endif
+
+            if(key_held('V')) // disabled
+                memset(bit2,1,_256*_192);
+
+            int scale = 4; if(key_pressed('C')) scale = 1;
+            if(0) // visualize
+            for( int y = 0; y < _192/scale; ++y )
+            for( int x = 0; x < _256/scale; ++x ) {
+                int i = x*scale + (y*scale) * _256;
+                canvas->pix[x+((_192-_192/scale)+y)*_256].rgba = bit2[i] ? ~0u : RGB(0,0,0);
+            }
+        }
+
+#if 0
+        for( int y = 0; y < 192; ++y ) {
+            byte *attribs0=VRAM0+6144+((y&0xF8)<<2);
+            byte *attribs1=VRAM +6144+((y&0xF8)<<2);
+
+            int idx = _32+(y+_24)*_256;
+
+            for( int x = 0; x < 32; ++x ) {
+                if( attribs0[x] == attribs1[x] ) continue;
+                int i = idx + x * 8;
+                if( !bit2[  i] ) canvas->pix[i].rgba = r0[i];
+                if( !bit2[++i] ) canvas->pix[i].rgba = r0[i];
+                if( !bit2[++i] ) canvas->pix[i].rgba = r0[i];
+                if( !bit2[++i] ) canvas->pix[i].rgba = r0[i];
+                if( !bit2[++i] ) canvas->pix[i].rgba = r0[i];
+                if( !bit2[++i] ) canvas->pix[i].rgba = r0[i];
+                if( !bit2[++i] ) canvas->pix[i].rgba = r0[i];
+                if( !bit2[++i] ) canvas->pix[i].rgba = r0[i];
+            }
+        }
+#else
+        int idx = _32 + _24 * _256, next = _32 * 2;
+        for( int y = 0; y < 192; ++y, idx += next ) {
+            for( int end = idx+256; idx < end; ++idx ) {
+                if( !bit2[idx] )
+                canvas->pix[idx].rgba = r0[idx];
+            }
+        }
+#endif
+    }
+#endif
 
         // @todo: optimize me
         tigrClear(app, tigrRGB(0,0,0));
@@ -2039,7 +2282,8 @@ if( do_runahead == 0 ) {
 
             char *ptr = dev_status;
             ptr += sprintf(ptr, "%02d/", (int)ZX_RPS);
-            ptr += sprintf(ptr, "%5.2ffps%s %d mem%s%d%d%d%d ", ZX_FPS, do_runahead ? "!":"", ZX, rom_patches ? "!":"", GET_MAPPED_ROMBANK(), (page128&8?7:5), 2, page128&7);
+            ptr += sprintf(ptr, "%5.2ffps%s%3d\f\f\f\fmem%s%d%d%d%d ", ZX_FPS, do_runahead ? "!":"", ZX, rom_patches ? "!":"", GET_MAPPED_ROMBANK(), (page128&8?7:5), 2, page128&7);
+            ptr += sprintf(ptr, "      "); // leave blank space for chat icon
             ptr += sprintf(ptr, "%02X%c%02X %04X ", page128, page128&32?'!':' ', page2a, PC(cpu));
 
             for( int i = 0; i < voices_max; ++i )
@@ -2049,10 +2293,13 @@ if( do_runahead == 0 ) {
             ptr += sprintf(ptr, "\n%dm%02ds ", (unsigned)(timer) / 60, (unsigned)(timer) % 60);
         }
 
+        if(ZX_PALETTE_PREVIEW) draw_palette(app, ZXPalette, ZXPaletteNames[ZX_PALETTE % countof(ZXPaletteNames)]);
+
         // rec before/after UI,
         int rec(Tigr*);
         int gui(const char *);
-        gui(dev_status), rec(ZX_PRINTUI ? app : canvas);
+        gui(dev_status);
+        rec(ZX_PRINTUI ? app : canvas);
 
         #define LOAD(ZX,file) if(file) do { \
                 if( !load(file,ZX) ) { \
@@ -2073,16 +2320,63 @@ if( do_runahead == 0 ) {
         }
 
         // parse cmdline. reload if needed
-        do_once
-        for( int i = 1; i < __argc; ++i )
-        if( __argv[i][0] != '-' ) {
-            #if TESTS
-            LOAD(48,list[i]);
-            #else
-            LOAD(00,__argv[i]);
-            #endif
+        do_once {
+            int showhelp = flag("-h") || flag("--help") || flag("-v") || flag("--version");
+            if( showhelp ) {
+                FILE *fp = fopen("README.txt", "wt");
+                if( fp ) {
+                    fprintf(fp, "Spectral " SPECTRAL "\n");
+                    fprintf(fp, "https://github.com/r-lyeh/Spectral\n\n");
+
+                    fprintf(fp, "%s [options] [file]\n", __argv[0]);
+                    for( int j = 1; j < countof(commands); j += 2 ) {
+                        char cmd[128] = {0}, info[128] = {0}, values[128] = {0};
+                        sscanf(commands[j], "%[^:] %[^\n]\n %[^\n]", cmd, info, values);
+                        char header[16]; snprintf(header, 16, "%s%s", cmd + strspn(cmd," "), values[0] ? "=X" : "" );
+                        if( values[0] )
+                        fprintf(fp, "  --%-6s  %s (%s)\n", header, info+1, values);
+                        else
+                        fprintf(fp, "  --%-6s  %s\n", header, info+1);
+                    }
+                    fclose(fp);
+                }
+                char *txt = readfile("README.txt", 0);
+                puts(txt);
+                alert(txt);
+                free(txt);
+            }
+
+            // files/folders first
+            for( int i = 1; i < __argc; ++i ) {
+                if( __argv[i][0] != '-' ) {
+                    #if TESTS
+                    LOAD(48,list[i]);
+                    #else
+                    LOAD(00,__argv[i]);
+                    #endif
+                }
+            }
+            // @fixme: more than 1 arg
+            // @fixme: do not save args to ini
+            // options next
+            for( int i = 1; i < __argc; ++i ) {
+                if( __argv[i][0] == '-' ) {
+                    char cmd[128]; snprintf(cmd, 128, "%s", __argv[i]);
+                    if( strchr(cmd, '=') ) *strchr(cmd, '=') = '\0';
+
+                    cmdarg = flag(cmd);
+                    if( !cmdarg ) continue;
+
+                    char *p = cmd + strspn(cmd, "-");
+                    int cmdlen = strlen(p);
+                    if( cmdlen > 0 ) cmdkey = toupper(p[0]);
+                    if( cmdlen > 1 ) cmdkey = toupper(p[1]) | (cmdkey << 8);
+                    if( cmdlen > 2 ) cmdkey = toupper(p[2]) | (cmdkey << 8);
+                    if( cmdlen > 3 ) cmdkey = toupper(p[3]) | (cmdkey << 8);
+                    if( cmdlen > 4 ) continue;
+                }
+            }
         }
-        else if( __argv[i][1] == 'v' ) cmdkey = 'HELP';
 
         // joffa ui
         do_once {
@@ -2100,6 +2394,7 @@ if( do_runahead == 0 ) {
         ZX_FULLSCREEN = !tigrWindowed(app); // update var in case user pressed ALT+ENTER, or in some other external way
         switch(cmdkey_) { default: 
             #if DEV
+            if(cmdkey_) hexdump(&cmdkey_, sizeof(cmdkey_));
             if(cmdkey_) alert(va("command not found `%08x`", cmdkey_));
             #endif
             break; case 'GAME':  if( ZX_BROWSER == 1 ? numgames : 1 ) browser ^= 1, ui_dialog_new(NULL);
@@ -2112,12 +2407,15 @@ if( do_runahead == 0 ) {
             break; case 'EJEC':  tape_reset();
             break; case 'FAST':  ZX_FASTTAPE ^= 1;
 
-            break; case  'TV':  { static int mode = 0; do_once mode = ZX_SHADED ? 4 : ZX_RF << 1 | ZX_CRT; mode = (mode + 1) % (ZX_SHADER && ZX_SHADER[0] ? 5 : 4); if(cmdarg_) mode = atoi(cmdarg_); ZX_RF = !!(mode & 2); ZX_CRT = mode & 1; ZX_SHADED = mode == 4; crt( ZX_SHADED ? shader : ZX_CRT ? shader_spectral : shader_tigr ); }
+            break; case  'RF':  ZX_RF  ^= 1; if(cmdarg_) ZX_RF  = (ZX_RF  * (cmdarg_[0] == '^')) ^ atoi(cmdarg_ + !isdigit(cmdarg_[0]));
+            break; case 'CRT':  ZX_CRT ^= 1; if(cmdarg_) ZX_CRT = (ZX_CRT * (cmdarg_[0] == '^')) ^ atoi(cmdarg_ + !isdigit(cmdarg_[0]));
+            break; case  'TV':  { static int mode = 0; do_once mode = ZX_SHADED ? 4 : ZX_RF << 1 | ZX_CRT; mode = (mode + 1) % (ZX_SHADER && ZX_SHADER[0] ? 5 : 4); if(cmdarg_) mode = atoi(cmdarg_); ZX_RF = !!(mode & 2); ZX_CRT = mode & 1; ZX_SHADED = mode == 4; app_apply_shader(); }
+            break; case 'SHAD': app_browse_shader();
 
             break; case 'FULL': { int mode = cmdarg_ ? atoi(cmdarg_) : (ZX_FULLSCREEN ^ 1);
                                 if( app_create(window_title(NULL), mode, ZX_ZOOM) ) ZX_FULLSCREEN = mode; }
 
-            break; case 'ZOOM': { int mode = (ZX_ZOOM + !ZX_ZOOM + 1) % 5; if( !app_wouldfit(mode) ) mode = 1; if( cmdarg_ ) mode = atoi(cmdarg_);
+            break; case 'ZOOM': { int mode = (ZX_ZOOM + !ZX_ZOOM + 1) % 6; if( !app_wouldfit(mode) ) mode = 1; if( cmdarg_ ) mode = atoi(cmdarg_);
                                 if( app_create(window_title(NULL), ZX_FULLSCREEN, mode) ) ZX_ZOOM = mode + !mode; }
 
             break; case 'SAVE':   quicksave(0);
@@ -2146,6 +2444,7 @@ if( do_runahead == 0 ) {
 
                 reset(0); ZXDB = zxdb_free(ZXDB); if(ZX_MEDIA) (free(ZX_MEDIA), ZX_MEDIA = 0); if(ZX_TITLE) (free(ZX_TITLE), ZX_TITLE = 0); titlebar(""); // clear media    KEEP_MEDIA/*|QUICK_RESET*/);
             
+            break; case 'CLIP':  if( !app_clipboard ) app_clipboard = tigrGetClipboard(app);
             break; case 'POKE':  pok_apply(cmdarg_);
             break; case 'MODE': {
                 // cycle
@@ -2170,18 +2469,23 @@ if( do_runahead == 0 ) {
 
                 titlebar(ZX_TITLE); // refresh titlebar to reflect new model
             }
-            // cycle AY cores
+            // cycle many settings
             break; case 'AY':    { const int table[] = { 1,2,0,0 }; ZX_AY = table[ZX_AY]; if(cmdarg_) ZX_AY=atoi(cmdarg_); }
             break; case 'WAVE':  ZX_WAVES ^= 1;                                   if(cmdarg_) ZX_WAVES=atoi(cmdarg_);
             break; case 'LENS':  ZX_LENSLOK ^= 1;                                 if(cmdarg_) ZX_LENSLOK=atoi(cmdarg_);
-            break; case 'PAL':   ZX_PALETTE = (ZX_PALETTE+1)%countof(ZXPalettes); if(cmdarg_) ZX_PALETTE=atoi(cmdarg_);    palette_use(ZX_PALETTE, ZXPaletteNames[ZX_PALETTE][1] - '0');
+            break; case 'BLUR':  ZX_BLUR = (ZX_BLUR+10)%100;                      if(cmdarg_) ZX_BLUR=atoi(cmdarg_)%100;
+            break; case 'BLUM':  ZX_BLOOM = (ZX_BLOOM+10)%100;                    if(cmdarg_) ZX_BLOOM=atoi(cmdarg_)%100;
+            break; case 'PALB':  { const char *file = app_loadfile(); if( file && strendi(file, ".pal") ) if( pal_load(file) ) palette_use(ZX_PALETTE = countof(ZXPaletteNames) - 1), cmdkey = 'PAL0'; }
+            break; case 'PAL':   ZX_PALETTE = (ZX_PALETTE+1)%countof(ZXPalettes); if(cmdarg_) ZX_PALETTE=atoi(cmdarg_);    palette_use(ZX_PALETTE);
+            break; case 'PALP':  ZX_PALETTE_PREVIEW ^= 1;                         if(cmdarg_) ZX_PALETTE_PREVIEW=(ZX_PALETTE_PREVIEW * (cmdarg_[0] == '^')) ^ atoi(cmdarg_ + !isdigit(cmdarg_[0]));
             break; case 'FIRE':  ZX_AUTOFIRE = (ZX_AUTOFIRE+1)%4;                 if(cmdarg_) ZX_AUTOFIRE=atoi(cmdarg_);
             break; case 'GUNS':  ZX_GUNSTICK ^= 1;                                if(cmdarg_) ZX_GUNSTICK=atoi(cmdarg_);   if(ZX_GUNSTICK) ZX_MOUSE = 0, ZX_JOYSTICK = 0; // cycle guns
             break; case 'MICE':  ZX_MOUSE ^= 1;                                   if(cmdarg_) ZX_MOUSE=atoi(cmdarg_);      if(ZX_MOUSE) ZX_GUNSTICK = 0;                  // cycle kempston mouse(s)
             break; case 'ULA':   ZX_ULAPLUS = (ZX_ULAPLUS+1)%3;                   if(cmdarg_) ZX_ULAPLUS=atoi(cmdarg_);    // cycle ulaplus
-            break; case 'RUN':   ZX_RUNAHEAD ^= 1;                                if(cmdarg_) ZX_RUNAHEAD=atoi(cmdarg_);   // cycle runahead mode
+            break; case 'RUN':   ZX_RUNAHEAD = (ZX_RUNAHEAD+1)%3;                 if(cmdarg_) ZX_RUNAHEAD=atoi(cmdarg_);   // cycle runahead mode
             break; case 'DEV':   ZX_DEBUG ^= 1;                                   if(cmdarg_) ZX_DEBUG=atoi(cmdarg_);
             break; case 'KL':    ZX_KLMODE ^= 1;                                  if(cmdarg_) ZX_KLMODE=atoi(cmdarg_);     ZX_KLMODE_PATCH_NEEDED = 1;
+            break; case 'CHAT':  ZX_LOBBY ^= 1;                                   if(cmdarg_) ZX_LOBBY=atoi(cmdarg_);
             break; case 'TENG':  ZX_AUTOLOCALE ^=1;                               if(cmdarg_) ZX_AUTOLOCALE=atoi(cmdarg_); if(ZX_AUTOLOCALE) translate(mem, 0x4000*16, 'en');
             if(ZX_AUTOLOCALE) {
                 ui_dialog_new(NULL);
@@ -2360,6 +2664,26 @@ if( do_runahead == 0 ) {
                 }
             }
 
+            break; case 'PAL0':
+                if( cmdarg_ &&  strcmp(cmdarg_, "^1") ) ZX_PALETTE = atoi(cmdarg_) % countof(ZXPaletteNames);
+                if( cmdarg_ && !strcmp(cmdarg_, "^1") ) ZX_PALETTE_PREVIEW ^= 1;
+
+                int ext = countof(ZXPaletteNames) - 1, is_ext_loaded = !!ZXPalettes[ext][1]; // !!is_file(".Spectral/Spectral.pal");
+
+                ui_dialog_new("- Toggle Palette -");
+                for( int i = 0; i < ext; ++i)
+                ui_dialog_option(1|4,va((ZX_PALETTE!=  i)+"\005%s%s",ZXPaletteNames[i  ],strendi(ZXPaletteNames[i  ],"\n") ? "":" "), NULL,'PAL0',va("%d",i));
+                ui_dialog_option(1|4,va((ZX_PALETTE!=ext)+"\005%s%s",ZXPaletteNames[ext],strendi(ZXPaletteNames[ext],"\n") ? "":" "), NULL,is_ext_loaded ? 'PAL0':'PALB',va("%d",ext));
+                ui_dialog_option(1|4,FOLDER_STR"\n\n","- Browse external .pal palette -",'PALB',NULL);
+
+                ui_dialog_checkbox2(&ZX_PALETTE_PREVIEW,"Toolbar  ","- Display Palette toolbar -",NULL);
+
+                ui_dialog_option(1,"OK\n",0,'PAL',va("%d", ZX_PALETTE));
+
+            case 'PAL1':
+                cmdkey = 'PAL1';
+                palette_use(ZX_PALETTE);
+
             break; case 'JOY0': {
                 // 0: no, |1: cursor/protek/agf, |2: kempston, |4: sinclair1, |8: sinclair2, |16:fuller, |32:kempston2, >=256:... custom mappings
 
@@ -2410,19 +2734,14 @@ if( do_runahead == 0 ) {
                 ui_dialog_option(2, "LT . . . . . . . . .. .. .. .. .. .. .. ..\n",NULL,0,0);
                 ui_dialog_option(2, "RT . . . . . . . . .. .. .. .. .. .. .. ..\n",NULL,0,0);
     #endif
-/*
-                const char *buttons[] = { "□\f\f", "□\b\b\b\b\b\b\b\b\5√\7\f\f\f" };
-                #define UI_CHECKBOX(hint,name,condition,cmd,toggle_val,main_val) \
-                ui_dialog_option(1|4,va("<%s", buttons[!!(condition)]),NULL,cmd,toggle_val); \
-                ui_dialog_option(1|4,va("%s\n", name),hint,cmd,main_val);
+
                 ui_dialog_separator();
-                UI_CHECKBOX("-Toggle Horace screenmate-","Keep horace onscreen", ZX_HORACE, 'HOR1',"1","1");
-*/
-ZX_HORACE = 1;
+
+                ui_dialog_checkbox2(&ZX_HORACE, "Toggle screenmate\n", "- Keep Horace around -", NULL );
 
                 ui_dialog_separator();
                 ui_dialog_option(1,"Save\n",0,'PAD2',0);
-                ui_dialog_option(1,"Cancel\n",0,'HOR1',"0");
+                ui_dialog_option(1,"Cancel\n",0, 0,NULL);
 
                 cmdkey = 'PAD1';
             }
@@ -2525,7 +2844,7 @@ ZX_HORACE = 1;
 
             break; case 'PAD2': // apply remap
                 memcpy(ZX_PAD, ZX_PAD_, sizeof(ZX_PAD_));
-                ZX_HORACE = 0;
+                //ZX_HORACE = 0;
 
             break; case 'MP3P': // mp3 play
                 {
@@ -2653,7 +2972,7 @@ ZX_HORACE = 1;
 
         // export config
         ZX = ZX | ZX_PENTAGON;
-        if(ZX_MEDIA) ZX_MEDIA = strdup(va("%s@%llu", ZX_MEDIA, media_seek[0] = voc_pos)); // @leak
+        if(ZX_MEDIA && ZX_MEDIA[0]) ZX_MEDIA = strdup(va("%s@%llu", ZX_MEDIA, media_seek[0] = voc_pos)); // @leak
         save_config();
     }
 
@@ -2669,7 +2988,7 @@ void on_cmd(unsigned key, const char *arg) {
 int gui(const char *status) {
     if( DEV ) {
         float x = 0.5, y = 0.5; // 23.5;
-        ui_print(ui,  x*11, y*11, ui_colors, status);
+        ui_print(ui,  x*11-2, y*11-1, ui_colors, status);
     }
 
     if( ZX_DEBUG ) {
@@ -2703,7 +3022,11 @@ int gui(const char *status) {
             else lenslok(ui, canvas, mouse_offsets()[0], mouse_offsets()[1] );
         }
     }
+
+    int ui_click_bak = ui_click;
+    if( num_options ) ui_click = 0; // cancel further ui actions as long as dialog exists
     draw_ui();
+    if( ui_click_bak ) ui_click = ui_click_bak;
 
     if( ZX_DEBUG )
     tigrBlitAlpha(app, dbg, 0,0, 0,0, _320,_240, 1.0f);
@@ -2720,32 +3043,9 @@ int gui(const char *status) {
         tigrRenderMap(app, overlay, m.x, m.y, m.buttons, -m.wheel);
     }
 
-    // draw irc on top
-    if( do_irc ) {
-
-        do_once {
-            int chat_printf(const char *fmt, ...);
-            ircd_printf = chat_printf;
-
-            static char host[] = "eu.dal.net"; // irc.dal.net eu.dal.net uk.eu.dal.net halcyon.dal.net
-            static int port = 6667;
-
-        #ifdef _WIN32
-            WSADATA wsa;
-            WSAStartup(MAKEWORD(2, 2), &wsa);
-        #endif
-
-            strcpy(m_ircd.nick, "rlyeh");
-            strcpy(m_ircd.name, "Player");
-            strcpy(m_ircd.chan, "#spectral105");
-
-            ircd_init(&m_ircd, host, port);
-        }
-
-        ircd_update(&m_ircd);
-
-        int x = 0, y = 0;
-        tigrBlitAlpha(app, irc, x,y, 0,0, _320,_240, 1.0f);
+    // draw chat on top
+    if( ZX_LOBBY ) {
+        chat_draw(app);
     }
 
     // render dialog modal on top
@@ -2842,9 +3142,17 @@ int gui(const char *status) {
 
             // 3 states: loading, gaming or typing (in basic)
             extern int tape_hz;
-            int typing = is_basic_mode();
+            int typing = PC(cpu) < 0x4000 && is_basic_mode();
             int loading = tape_playing() && tape_hz > 200; // (PC(cpu) & 0xFF00) == 0x0500 ? 1 : tape_playing() && !typing;
             int gaming = !loading && !typing;
+
+            static int typing_hz; // fast increase, slow decay
+            if( typing ) ++typing_hz; else typing_hz *= 0.95;
+
+            int ATTR_P = READ8(0x5C8D); // FLASH:1|BRIGHT:1|PAPER:3|INK:3
+            int BRIGHT = !!(ATTR_P & 32);
+            int PAPER = (ATTR_P >> 3) & 7;
+            int PAPER_PAL = PAPER + 8 * BRIGHT;
 
             unsigned hit = 0;
             for( int y = gy+0; y < _230 && !hit; ++y ) {
@@ -2852,17 +3160,25 @@ int gui(const char *status) {
                 for( int x = -4; x < 4; ++x ) {
                     unsigned *fg = &app->pix[(int)(gx + x + y * _320)].rgba;
 
+                    unsigned r1 = *fg;
+                    unsigned b1 = (r1 >> 16) & 255;
+                    unsigned g1 = (r1 >>  8) & 255;
+                             r1 = (r1 >>  0) & 255;
+
                     // Compare foregound color against background color
                     #define fgcheck(bg) if(bg) { \
-                        unsigned diff = bg - *fg; \
-                        double luma = 1.0 / (diff + !diff); \
-                        if( luma >= 0.95 ) continue; \
+                        unsigned r2 = bg; \
+                        unsigned b2 = (r2 >> 16) & 255; \
+                        unsigned g2 = (r2 >>  8) & 255; \
+                                 r2 = (r2 >>  0) & 255; \
+                        unsigned diff = (r1-r2)*(r1-r2) + (g1-g2)*(g1-g2) + (b1-b2)*(b1-b2); \
+                        if( diff <= (40*40) ) continue; \
                     }
 
                     fgcheck(ZXPalette[ZXBorderColor]);
 
-                    if( !typing ) // gaming )
-                    fgcheck(ZXPalette[0]);
+                    if( typing_hz )
+                    fgcheck(ZXPalette[PAPER_PAL]);
 
                     fgcheck(bgcolors[0]);
                     fgcheck(bgcolors[1]);
@@ -2872,9 +3188,8 @@ int gui(const char *status) {
                     fgcheck(bgcolors[5]);
                     fgcheck(bgcolors[6]);
                     fgcheck(bgcolors[7]);
-                    
-                    hit = *fg;
-                    break;
+
+                    hit = *fg; break;
                 }
             }
 
@@ -2935,42 +3250,3 @@ int rec(Tigr *canvas) {
     return 1;
 }
 
-int chat_printf(const char *fmt, ...) {
-    static char *buf = 0; if(!buf) buf = REALLOC(0,64*1024);
-    
-    va_list vl;
-    va_start(vl,fmt);
-    int rc = vsnprintf(buf, 64*1024-1, fmt, vl);
-    va_end(vl);
-
-    printf("%s", buf);
-
-    if( *buf == ':' ) {
-        replace(buf, "~", "-"); // for ui_print()
-
-        static int x = 0, y = 0;
-        ui_stack bak = ui_push();
-        ui_at(irc, x,y);
-
-        char *buf2 = buf, *line;
-        while( NULL != (line = strsep(&buf2, "\r\n")) ) {
-            if( *line == '\r' || *line == '\n' ) continue;
-            char *text = 0; {
-                if( *line == ':' ) {
-                    text = strchr(line+1, ':');
-                    if( text && *text == ':' ) ++text;
-                }
-            }
-            if( text ) {
-                ui_label(text);
-                ui_x = 0;
-                ui_y += 11;
-            }
-        }
-
-        x = ui_x, y = ui_y;
-        ui_pop(bak);
-    }
-
-    return rc;
-}

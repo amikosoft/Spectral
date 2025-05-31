@@ -63,7 +63,7 @@ static void push_audio(int count) {
     }
 }
 
-void audio_queue(float sample, float samples[7]) {
+void audio_queue(float sample, float samples[7], int ays) {
     // Current and cumulative errors count
     static int underruns = 0, total_underruns = 0;
     static int overruns = 0, total_overruns = 0;
@@ -88,16 +88,16 @@ void audio_queue(float sample, float samples[7]) {
     if (next_pos != audio_read) {
 #if AUDIO_CHANNELS == 2
         float BUZZ = samples[0];
-        float AY_A = samples[1] + samples[4];
-        float AY_B = samples[2] + samples[5];
-        float AY_C = samples[3] + samples[6];
-        float AY_L = AY_A * 0.50 + AY_C * 0.50;
-        float AY_R = AY_B * 0.50 + AY_C * 0.50;
-        float master = 0.98f * 1 * !!sample; // * !!ZX_AY;
+        float AY_A =(samples[1] + samples[4]) / ays;
+        float AY_B =(samples[2] + samples[5]) / ays;
+        float AY_C =(samples[3] + samples[6]) / ays;
+        float AY_L = AY_A + AY_C * 0.50; AY_L /= 1.5;
+        float AY_R = AY_B + AY_C * 0.50; AY_R /= 1.5;
+        float master = 0.98f * !!sample; // * !!ZX_AY;
 
         // Store the samples in the circular buffer
-        audio_mixed[audio_write].l = (BUZZ * 0.75 + AY_L * 0.25) * master;
-        audio_mixed[audio_write].r = (BUZZ * 0.75 + AY_R * 0.25) * master;
+        audio_mixed[audio_write].l = (sample * 0.50 + AY_L * 0.50) * master; // (BUZZ * 0.75 + AY_L * 0.25) * master;
+        audio_mixed[audio_write].r = (sample * 0.50 + AY_R * 0.50) * master; // (BUZZ * 0.75 + AY_R * 0.25) * master;
 #else
         audio_mixed[audio_write].l = sample;
 #endif
@@ -151,7 +151,7 @@ void audio_reset(void) {
     // Push initial silence to avoid immediate underruns
     float2 silence[1024] = {0};
     for( int i = 0; i < ((AUDIO_BUFFERLEN/2)/1024); ++i)
-        saudio_push((float*)silence, 1024 * AUDIO_CHANNELS);
+        saudio_push((float*)silence, 1024 /* * AUDIO_CHANNELS */);
 }
 
 void audio_quit(void) {

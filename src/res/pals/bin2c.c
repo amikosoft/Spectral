@@ -57,18 +57,24 @@ main(int argc, char *argv[])
     need_comma = 0;
 
     fprintf(f_output, "{\"%s\", {", ident, file_size);
-    for (i = 0; i < file_size; ++i) {
-        if (need_comma)
-            fprintf(f_output, ",");
-        else
-            need_comma = 1;
-        if ((i % 16) == 0)
-            fprintf(f_output, "\n/*%06x*/ ", i);
-        if ((i % 4) == 0)
-            fprintf(f_output, "RGBX(");
-        fprintf(f_output, "0x%.2x", buf[i] & 0xff);
-        if (((i+1) % 4) == 0)
-            fprintf(f_output, ")");
+    for (i = 0; i < file_size; ) {
+        if( (file_size % 4 ) == 0 ) {
+            if ((i % 16) == 0) fprintf(f_output, "\n"/*"/*%06x*""/ "*/, i);
+
+            fprintf(f_output, "rgba(");
+            fprintf(f_output, "%3d,", buf[i++] & 0xff);
+            fprintf(f_output, "%3d,", buf[i++] & 0xff);
+            fprintf(f_output, "%3d,", buf[i++] & 0xff);
+            fprintf(f_output, "%3d),", buf[i++] & 0xff);
+        }
+        if( (file_size % 3 ) == 0 ) {
+            if ((i % 12) == 0) fprintf(f_output, "\n"/*"/*%06x*""/ "*/, i);
+
+            fprintf(f_output, "rgb(");
+            fprintf(f_output, "%3d,", buf[i++] & 0xff);
+            fprintf(f_output, "%3d,", buf[i++] & 0xff);
+            fprintf(f_output, "%3d),", buf[i++] & 0xff);
+        }
     }
     fprintf(f_output, "\n}},\n\n");
 

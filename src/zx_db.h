@@ -537,7 +537,8 @@ char* zxdb_url(const zxdb z, const char *hint) {
     else if( strstri(hint, "instr")) hint = "|28|I";
     else if( strstri(hint, "overlay")) hint = "|30|K"; // @todo: addme
     else if( strstri(hint, "ay")) hint = "|23|R"; // after overlay
-    else if( strstri(hint, "map")) hint = "|31|G";
+    else if( strstri(hint, "png|map")) hint = "png|0|31|G";
+    else if( strstri(hint, "map")) hint = "|31|G"; // after png|map
     else if( strstri(hint, "comic")) hint = "|59|C";
     else if( strstri(hint, "rzx")) hint = "|63|R";
     else if( strstri(hint, "pok")) hint = "|74|P";

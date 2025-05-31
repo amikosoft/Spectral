@@ -17,6 +17,7 @@
 #include "3rd_tigrrendermap.h"
 #include "3rd_tigrwindowed.h"
 #include "3rd_tigrfocused.h"
+#include "3rd_tigrclipboard.h"
 #undef border
 #undef run
 
@@ -54,7 +55,7 @@
 #include "3rd_thread.h"
 #include "3rd_bin.h"
 
-#if 1
+#if 1 // ndef __linux__
 #define TFD_IMPLEMENTATION
 //#define GetForegroundWindow GetActiveWindow
 #include "3rd_tfd.h"
@@ -69,8 +70,16 @@
 #pragma comment(lib, "comdlg32")
 #else
 //#include "3rd_osdialog_gtk2.c"
-#include "3rd_osdialog_gtk3.c"
+//#include "3rd_osdialog_gtk3.c"
+#include "3rd_osdialog_zenity.c"
 #endif
+
+#define tinyfd_colorChooser(title,hex,incolor,outcolor) NULL; do { \
+         osdialog_color c = { incolor[0],incolor[1],incolor[2],255 }; \
+         if( osdialog_color_picker(&c, 0) == 1 ) { \
+            outcolor[0] = c.r, outcolor[1] = c.g, outcolor[2] = c.b; \
+         } \
+     } while(0) 
 #endif
 
 //#define GAMEPAD_EXPORT 1
@@ -88,3 +97,5 @@
 #include "3rd_drmp3.h"
 
 #include "3rd_arc4.h"
+
+#include "3rd_ands.h"
