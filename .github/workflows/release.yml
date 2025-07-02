@@ -80,7 +80,7 @@ jobs:
 
   build-macos:
     needs: create-release
-    runs-on: macos-13 ##macos-latest
+    runs-on: macos-15-intel ##macos-13 > deprecated ##macos-latest
     steps:
       - uses: actions/checkout@v3
       - name: Build macOS

@@ -142,7 +142,7 @@ void chat_draw(Tigr *chat) {
     }
 
     if( !ircd_update(&m_ircd) ) {
-        alert("Cannot connect to lobby server");
+        alert("Cannot connect to multiplayer lobby server.\nPublic releases have no multiplayer support yet.");
         ZX_LOBBY = 0;
     }
 

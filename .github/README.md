@@ -1,15 +1,23 @@
 <p align="center">
-<img src="../src/res/logo/bar1.png" width="600"/><img src="../src/res/logo/logowbg.png" width="8%" height="8%"/><br/>
+<picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../src/res/logo/bar4.png">
+    <img alt="Project Logo" src="../src/res/logo/bar1.png" width="600">
+</picture>
+<picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../src/res/logo/logowbg.png">
+    <img alt="Project Logo" src="../src/res/logo/logobw.png" width="8%" height="8%">
+</picture><br/>
 </p>
+
 
 Spectral is an experimental Sinclair ZX Spectrum emulator from the 80s, which has been randomly assembled [since the pandemic days](https://twitter.com/r_rlyeh/status/1280964279903158273). Accuracy and performance are long-term goals, but the primary focus is just having fun with this thing. Hardcore ZX users will find little value in this emulator right now, but I hope newbies may find its ease of use somehow appealing to try.
 That being said, Spectral has a very compatible TAP/TZX loader and some other interesting features that provide me some fun in these days.
 Code is highly experimental and prone to change in the future. I will keep altering/breaking things randomly for good sake.
 
 <p align="center">
-<img src="https://github.com/r-lyeh/Spectral/assets/35402248/8d8ee594-fafd-4538-993f-9840bf9fc245"/><br/>
-<img src="https://github.com/user-attachments/assets/05de75a6-ae3c-4da8-9896-8cc89efbb5e6"/><br/>
-<img src="https://github.com/user-attachments/assets/fcc20345-c619-48df-af26-e37c8af99a6c"/>
+<img src="README_1_MainMenu.webp"/><br/>
+<img src="README_2_Loading.webp"/><br/>
+<img src="README_3_Browser.webp"/>
 </p>
 
 # Roadmap and features
@@ -23,7 +31,7 @@ Code is highly experimental and prone to change in the future. I will keep alter
 - [x] Cycle stepped ULA/ULA+ ultrawide/multicolor graphics. 25/30/50/60Hz fps lock.
 - [x] 16, 48, 128, +2, +2A, +3, Pentagon128 models.
 - [x] Issue 2/3 keyboards. Modern native/host keyboard layout while in BASIC.
-- [x] Beeper/AY chips. Turbosound/Turbo-AY (Pentagon only). Waveforms.
+- [x] Beeper/AY chips. Turbosound/Turbo-AY. Waveforms.
 - [x] Kempston mouse. <!-- @todo: AMX mouse.-->
 - [x] Kempston/Fuller/Cursor/Sinclair joysticks. Gamepad support (Windows, Linux). <!-- @todo: invert joystick/mouse axes/buttons -->
 - [x] RF/CRT experience (not physically accurate though).
@@ -34,11 +42,12 @@ Code is highly experimental and prone to change in the future. I will keep alter
 - [x] AY tunes player.
 - [x] MP3s. Side-B bonus tracks.
 - [x] Nec µ765/Betadisk interfaces.
-- [x] Auto load games. Auto play/stop tape. TurboROM.
+- [x] Auto load games. Auto play/stop tape. TurboROM. Flashloader.
 - [x] Graphical tape browser.
 - [x] Improved input latency via Run-Ahead.
 - [x] POK support. <!-- @todo: cheats finder; useful? --> 
 - [x] Gunstick, Lightgun. Mikro-plus. [Lenslok](https://www.youtube.com/watch?v=GN_vPGQ4BNM). <!-- Cheetah Defender Lightgun, Magnum Light Phaser, Stack Light Rifle -->
+- [x] Palette swapper.
 - [x] External shaders support.
 - [x] Internal savestates.
 - [x] Graphical User Interface.
@@ -61,7 +70,7 @@ Spectral can be configured with a mouse.
 Here are some keyboard shortcuts, though:
 - ESC: Game browser
 - ALT+ENTER: Fullscreen
-- TAB+CURSORS (or GAMEPAD): Joystick
+- TAB+CURSORS (or GAMEPAD): Joystick(s)
 
 Hold any F1..F12 key for 2 seconds to redefine it.
 
@@ -82,9 +91,9 @@ Free code signing provided by [SignPath.io](https://about.signpath.io), certific
 # Links
 - [Introduction to the ZX Spectrum](https://en.wikipedia.org/wiki/ZX_Spectrum), entry on Wikipedia.
 - [SpecEmu](https://specemu.zxe.io/), my favourite ZX emulator on Windows. Also, see [other alternatives](https://alternativeto.net/software/spectral/).
-- [SpectrumComputing](https://spectrumcomputing.co.uk/), [WorldOfSpectrum](https://worldofspectrum.net/), [ZXArt](https://zxart.ee/), [Virtual TRDOS](https://vtrd.in/) and [ZXInfo](https://zxinfo.dk/) are the best online resources (imho).
+- [SpectrumComputing](https://spectrumcomputing.co.uk/), [WorldOfSpectrum](https://worldofspectrum.net/), [ZXArt](https://zxart.ee/), [Virtual TRDOS](https://vtrd.in/) and [ZXInfo](https://zxinfo.dk/) are my fav online resources.
 - [Crash](https://archive.org/details/crash-magazine), [YourSinclair](https://archive.org/details/your-sinclair-magazine), [SinclairUser](https://archive.org/details/sinclair-user-magazine) and [MicroHobby(ES)](https://archive.org/details/microhobby-magazine) are great old paper magazines.
-- [ZXDB](https://github.com/zxdb/ZXDB), [game maps](https://maps.speccy.cz/), [game cheats](https://www.the-tipshop.co.uk/), [RZX](https://worldofspectrum.net/RZXformat.html) [replays](https://www.rzxarchive.co.uk/) and [game longplays](https://www.youtube.com/@SpectrumComputing).
+- [ZXDB](https://github.com/zxdb/ZXDB), [game maps](https://maps.speccy.cz/), [game cheats](https://www.the-tipshop.co.uk/), [RZX](https://worldofspectrum.net/RZXformat.html) [replays](https://www.rzxarchive.co.uk/) and [game longplays](https://www.youtube.com/@SpectrumComputing/videos).
 - [Daily ZX videos](https://www.youtube.com/results?search_query=zx+spectrum&sp=CAI%253D), on YouTube.
 
 [![](https://github.com/r-lyeh/Spectral/actions/workflows/build.yml/badge.svg)](https://github.com/r-lyeh/Spectral/actions/workflows/build.yml) <a href="https://discord.gg/UpB7nahEFU"><img alt="Discord" src="https://img.shields.io/discord/354670964400848898?color=5865F2&label=Chat&logo=discord&logoColor=white"/></a>

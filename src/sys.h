@@ -8,11 +8,11 @@
 #include "sys_window.h"
 #include "sys_audio.h"
 #include "sys_mouse.h"
+#include "sys_gamepad.h"
 #include "sys_ui.h"
 #include "sys_ansi.h"
 #include "sys_network.h"
 #include "sys_embed.h"
-#include "sys_gamepad.h"
 #include "sys_ffmpeg.h"
 
 #define VALNEW(v) v

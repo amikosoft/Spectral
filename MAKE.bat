@@ -157,6 +157,7 @@ if "%1"=="dev" (
 )
 
 if "%1"=="asan" (
+    set cc=cl
     call make dev /fsanitize=address %ALL_FROM_2ND% || goto error
 
     tasklist /fi "ImageName eq remedybg.exe" 2>NUL | find /I "exe">NUL || (where /q remedybg.exe && start remedybg -q -g Spectral.exe)
@@ -223,14 +224,13 @@ echo !cc! src\app.c src\sys_window.cc zxdb.res -I src /FeSpectral.exe !ARCH! %AL
 del zxdb.res
 
 
-for /F "skip=1 delims=" %%F in ('
-    wmic PATH Win32_LocalTime GET Day^,Month^,Year /FORMAT:TABLE
+
+for /f "tokens=1-3 delims=," %%A in ('
+    powershell -NoProfile -Command "(Get-Date).ToString('yy,MM,dd')"
 ') do (
-    for /F "tokens=1-3" %%L in ("%%F") do (
-        set today=0%%L
-        set month=0%%M
-        set year=%%N
-    )
+    set "year=%%A"
+    set "month=%%B"
+    set "today=%%C"
 )
 
 rem where /q rcedit-x64 || (git clone https://github.com/electron/rcedit && pushd rcedit && git checkout 28a1319 && rc src\rcedit.rc && cl /Fercedit-x64 src\*.res src\*.c* /EHsc version.lib && copy *.exe /y .. && popd)
@@ -251,7 +251,7 @@ ping -n 2 -w 1500 localhost > nul && rem wait 1s between 2 consecutive pings, so
 where /q rcedit-x64 || curl -LO https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe
 where /q rcedit-x64 && ^
 rcedit-x64 "Spectral.exe" --set-file-version "!year!.!month!.!today!.!today!!month!" && ^
-rcedit-x64 "Spectral.exe" --set-product-version "1.12 Spectral" && ^
+rcedit-x64 "Spectral.exe" --set-product-version "1.13" && ^
 rcedit-x64 "Spectral.exe" --set-icon src\res\img\noto_1f47b.ico || goto error
 
 if "%__DOTNET_PREFERRED_BITNESS%"=="32" (
