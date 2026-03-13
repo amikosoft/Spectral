@@ -667,10 +667,15 @@ int is_mgt(const unsigned char *data, size_t size) {
 
 // Identify format from data array
 const char *identify_disk(const unsigned char *data, size_t size) {
-    if (is_trd(data, size)) return "TRD";
     if (is_scl(data, size)) return "SCL";
-    if (is_hobeta(data, size)) return "Hobeta";
     if (is_fdi(data, size)) return "FDI";
+    return NULL;
+}
+const char *identify_headerless_disk(const unsigned char *data, size_t size) {
+    const char *ext = identify_disk(data,size);
+    if( ext ) return ext;
+    if (is_trd(data, size)) return "TRD";
+    if (is_hobeta(data, size)) return "Hobeta";
     if (is_img(data, size)) return "IMG";
     if (is_mgt(data, size)) return "MGT";
     return NULL;
@@ -722,12 +727,20 @@ int guess_v1(const byte *ptr, int size) { // guess required model type for given
     if( size == 131103 ) return 128|ZX_PENTAGON; // @fixme: force ZX_PENTAGON for .sna?
     if( size == 147487 ) return 128|ZX_PENTAGON; // @fixme: force ZX_PENTAGON for .sna?
 
-    // @fixme: trd/scl/fdi/mgt headers to parse?
-    // at this point file is too large to be a snapshot. must be a disk instead (trd,scl,fdi,mgt,etc)
+    // disk images with headers (fdi,scl)
     if( identify_disk(ptr,size) ) return 128|1;
-    if( size > 147487 ) return 128|1;
 
     // headerless variable-size formats now
+    if( size < 132000 ) {
     if( *ptr == 'N' ) return 0; // .pok
-    return size > 87 ? z80_guess(ptr, size) : 0;
+    int rc = z80_guess(ptr, size); // .z80?
+    if( rc ) return rc;
+    }
+
+    // @fixme: trd/scl/fdi/mgt headers to parse?
+    // at this point file is too large to be a snapshot. must be a disk instead (trd,hobeta,mgt,etc)
+    if( identify_headerless_disk(ptr,size) ) return 128|1;
+    if( size > 147487 ) return 128|1;
+
+    return 0;
 }

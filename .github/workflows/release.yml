@@ -78,7 +78,36 @@ jobs:
           asset_name: Spectral-${{ github.event.inputs.version }}.linux
           asset_content_type: application/x-executable
 
-  build-macos:
+  build-macos-arm:
+    needs: create-release
+    runs-on: macos-latest > deprecated ##macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build macOS
+        run: sh MAKE.bat
+      - name: Upload macOS Artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./Spectral.dmg
+          asset_name: Spectral-${{ github.event.inputs.version }}-ARM.dmg
+          asset_content_type: application/x-apple-diskimage
+      - name: Create source archive
+        run: |
+          git archive --format=tar.gz --output=source.tar.gz HEAD
+      - name: Upload sources
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./source.tar.gz
+          asset_name: Spectral-${{ github.event.inputs.version }}-ARM.tar.gz
+          asset_content_type: application/gzip
+
+  build-macos-intel:
     needs: create-release
     runs-on: macos-15-intel ##macos-13 > deprecated ##macos-latest
     steps:
@@ -92,7 +121,7 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ./Spectral.dmg
-          asset_name: Spectral-${{ github.event.inputs.version }}.dmg
+          asset_name: Spectral-${{ github.event.inputs.version }}-X64.dmg
           asset_content_type: application/x-apple-diskimage
       - name: Create source archive
         run: |
@@ -104,7 +133,7 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ./source.tar.gz
-          asset_name: Spectral-${{ github.event.inputs.version }}.tar.gz
+          asset_name: Spectral-${{ github.event.inputs.version }}-X64.tar.gz
           asset_content_type: application/gzip
 
   build-windows:

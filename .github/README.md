@@ -33,7 +33,7 @@ Code is highly experimental and prone to change in the future. I will keep alter
 - [x] Issue 2/3 keyboards. Modern native/host keyboard layout while in BASIC.
 - [x] Beeper/AY chips. Turbosound/Turbo-AY. Waveforms.
 - [x] Kempston mouse. <!-- @todo: AMX mouse.-->
-- [x] Kempston/Fuller/Cursor/Sinclair joysticks. Gamepad support (Windows, Linux). <!-- @todo: invert joystick/mouse axes/buttons -->
+- [x] Kempston/Fuller/Cursor/Sinclair joysticks. x4 Gamepad support (Windows, Linux). <!-- @todo: invert joystick/mouse axes/buttons -->
 - [x] RF/CRT experience (not physically accurate though).
 - [x] TAP/TZX/PZX/CSW tapes. Z80/SNA/SZX snaps. ROM/IF2 roms.
 - [x] DSK/EDSK/TRD/SCL/FDI/MGT/IMG/HOBETA disks.
@@ -70,7 +70,7 @@ Spectral can be configured with a mouse.
 Here are some keyboard shortcuts, though:
 - ESC: Game browser
 - ALT+ENTER: Fullscreen
-- TAB+CURSORS (or GAMEPAD): Joystick(s)
+- TAB+CURSORS (or GAMEPADs): Joystick(s)
 
 Hold any F1..F12 key for 2 seconds to redefine it.
 
