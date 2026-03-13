@@ -202,13 +202,15 @@ byte TAP_load(byte id_a, unsigned start_ix, unsigned length_de)
     }
 }
 bool TAP_load2(byte id_a, unsigned start_ix, unsigned length_de) {
+    // if((start_ix+length_de)>65535) return alert(".tap loading error"), 0;
+
     unsigned where  = start_ix; //IX(cpu);
     unsigned amount = length_de; //DE(cpu);
     unsigned errors = 0;
 
     // auto tape-rewind function on end-of-file
     extern const byte *TAP_sof, *TAP_pof, *TAP_eof;
-    if( TAP_pof > TAP_eof ) TAP_pof = TAP_sof;
+    if( TAP_pof >= TAP_eof ) TAP_pof = TAP_sof;
     const byte *src = TAP_pof;
 
     int bytes = (TAP_pof[1] << 8) | TAP_pof[0]; TAP_pof+=2; //size of header
@@ -217,7 +219,7 @@ bool TAP_load2(byte id_a, unsigned start_ix, unsigned length_de) {
     bytes -= 2;
 
     byte id_tape = *TAP_pof++;
-#if 0
+#if 1
     if( id_tape != id_a )
         return TAP_pof += bytes+2-1, 0; // if id not ok then skip block+checksum and return error
 #endif
@@ -237,6 +239,8 @@ bool TAP_load2(byte id_a, unsigned start_ix, unsigned length_de) {
 //        if( i >= skip ) // ? id_tape/*A(cpu)*/ : *TAP_pof++;
         crc ^= ( last = i >= skip ? *TAP_pof++ : last );
 //        if( i >= amount ) continue;
+
+        if((where + i) > 65535) continue;
         errors += verify ? READ8(where + i) != last : (WRITE8(where + i, last), 0);
     }
 
@@ -262,6 +266,9 @@ int rom_patch_trap() {
 
 //    byte *rombank = ROM_BANK(GET_BASIC_ROMBANK());
 //    if( rombank != rom ) return 0;
+
+//    if(MEMr[0]!=ROM_BANK(GET_BASIC_ROMBANK())) return 0;
+
     int rombank = GET_MAPPED_ROMBANK();
     int basicbank = GET_BASIC_ROMBANK();
     if( rombank != basicbank ) return 0;
@@ -414,7 +421,6 @@ void rom_patch_klmode(unsigned pc) {
         }
     }
 }
-
 
 int translate(char *ptr, int size, int locale) { 
     if( !(!!ptr * size) )

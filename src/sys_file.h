@@ -119,8 +119,8 @@ void hexdump( const void *ptr, unsigned len ) {
 }
 
 
-const char* app_loadfile() {
-    char cwd[DIR_MAX] = {0}; getcwd(cwd, DIR_MAX);
+const char* app_loadfile(const char *cwd) {
+    char buf[DIR_MAX] = {0}; if(!cwd) getcwd(buf, DIR_MAX), cwd = buf;
 #ifdef TFD_IMPLEMENTATION
     const char *windowTitle = NULL;
     const char *filterHints = NULL; // "image files"

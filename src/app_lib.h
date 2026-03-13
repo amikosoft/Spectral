@@ -553,6 +553,7 @@ void rescan(const char *folder) {
     if(!folder) return;
     if(ZX_PLAYER) return; // zxplayer has no library
 
+    char *copy = va("%s", folder && folder[0] ? folder : "."); folder = copy;
     if( ZX_FOLDER ) free(ZX_FOLDER); ZX_FOLDER = STRDUP(folder);
 
     printf("scanning `%s` folder...\n", folder);
@@ -795,12 +796,15 @@ int game_browser_keyboard(const int ENTRIES, const int numgames) { // returns cl
         return selected = numgames % ENTRIES, scroll = numgames / ENTRIES, -1; //fixme
 #endif
 
+    unsigned pad = gamepad(1);
+
     static int tbl[256] = {0};
     int up = key_repeat_( TK_DOWN, tbl) - key_repeat_( TK_UP, tbl);
+       up += key_repeat_( PADVK_D, tbl) - key_repeat_( PADVK_U, tbl);
     int pg = key_repeat_( TK_PAGEDN, tbl) - key_repeat_( TK_PAGEUP, tbl);
     int home = key_pressed( TK_HOME) || (key_pressed( TK_UP) && key_held(TK_CONTROL));
     int end  = key_pressed( TK_END) || (key_pressed( TK_DOWN) && key_held(TK_CONTROL));
-    int trigger = key_trigger(TK_RETURN) || key_trigger(TK_TAB) || (gamepad() & 1);
+    int trigger = key_trigger(TK_RETURN) || key_trigger(TK_TAB) || key_trigger(PADVK_A);
 
     float wheel = mouse().wheel;
     if( wheel ) {
@@ -1000,10 +1004,10 @@ char* game_browser_v2() {
 
     // handle input
     struct mouse m = mouse();
-    int up = key_repeat( TK_UP);
-    int down = key_repeat( TK_DOWN);
-    int left = key_repeat( TK_LEFT);
-    int right = key_repeat( TK_RIGHT);
+    int up = key_repeat( TK_UP); up += key_repeat(PADVK_U);
+    int down = key_repeat( TK_DOWN); down += key_repeat(PADVK_D);
+    int left = key_repeat( TK_LEFT); left += key_repeat(PADVK_L);
+    int right = key_repeat( TK_RIGHT); right += key_repeat(PADVK_R);
     int page_up = key_repeat(TK_PAGEUP);
     int page_down = key_repeat(TK_PAGEDN);
 

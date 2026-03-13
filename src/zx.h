@@ -59,7 +59,6 @@
 // - lg18,gw03,sebasic fail in the games above. jgh v0.77 seems to work. old sebasic partially too
 // ay:
 // - Fuller Box AY chip is clocked at 1.63819 MHz
-// - ABC/ACB modes when stereo is enabled
 // beeper:
 // - indiana jones last crusade. what was the problem again?
 // - OddiTheViking128
@@ -123,12 +122,11 @@ int ZX_AY = 1; // 0: no, 1: fast, 2: accurate
 int ZX_PALETTE = 0; // 0: own, N: others
 int ZX_PAUSE = 1; // 0: always on, 1: pause if app is minimized/blurred
 int ZX_TURBOROM = 0; // 0: no, 1: patch rom so loading standard tape blocks is faster (see: .tap files)
-int ZX_JOYSTICK = 1|2|16; // 0: no, |1: cursor/protek/agf, |2: kempston, |4: sinclair1, |8: sinclair2, |16: fuller, |32:kempston2, >=256:... custom mappings
-int ZX_JOYSTICK_AUTOFIRE = 0; // 0: no, 1: slow, 2: fast, 3:faster
 int ZX_MOUSE = 1; // 0: no, 1:kempston mouse, 2:gunstick/lightgun
 int ZX_MOUSE_AUTOFIRE = 0; // 0: no, 1: slow, 2: fast, 3:faster
 int ZX_AUTOPLAY = 0; // yes/no: auto-plays tapes based on #FE port reads
 int ZX_AUTOSTOP = 0; // yes/no: auto-stops tapes based on #FE port reads
+int ZX_TAPECOUNTER = 1; // yes/no
 int ZX_RUNAHEAD = 0; // 0: no, 1: 1-frame run-ahead, 2: 2-frame run-ahead (improved input latency)
 int ZX_ULAPLUS = 2; // 0:classic, 1: ulaplus 64color mode, 2: ulaplus/ultrawide
 int ZX_FPSMUL = 100; // fps multiplier: 0 (max), x100 (50 pal), x120 (60 ntsc), x200 (7mhz), x400 (14mhz)
@@ -140,9 +138,8 @@ int ZX_LENSLOK = 0; // yes/no: lenslok glass
 int ZX_CONSOLE = 0; // yes/no
 #define ZX_GUNSTICK (ZX_MOUSE==2)
 
-#define ZX_JOYSTICK_AUTOFIRE_BUTTON (!!(ZX_AUTOFIRE_&1))
-#define ZX_MOUSE_AUTOFIRE_BUTTON (!!(ZX_AUTOFIRE_&2))
-int ZX_AUTOFIRE_ = 0; // internal variable. not exposed
+int ZX_MOUSE_AUTOFIRE_BUTTON = 0; // internal variable. not exposed
+int ZX_JOYSTICKS_AUTOFIRE_BUTTON[5] = {0}; // internal variable. not exposed
 
 int ZX_PENTAGON = 0; // DEV; // whether the 128 model emulates the pentagon or not
 int ZX_TURBOSOUND = 0; // whether we support TurboSound/TurboAY (6-channels) or not
@@ -159,10 +156,26 @@ int ZX_PALETTE_PREVIEW = 0; // 0: no, 1: yes
 const char *ZX_FN_STR[] = {"ESC","F1","F2","F3","F4","F5","F6","F7","F8","F9","F10","F11","F12"};
 int ZX_FN[12+1] = {'GAME'}; // redefineable function keys. FN[0] = ESC, FN[1..12] = F1..F12
 
+// note that [0]=cursor keys,[1]=gamepad1,[2]=gamepad2...
+int ZX_JOYSTICKS[5] = {1|2|16}; // 0: no, |1: cursor/protek/agf, |2: kempston, |4: sinclair1, |8: sinclair2, |16: fuller, |32:kempston2, >=256:... custom mappings
+int ZX_JOYSTICKS_AUTOFIRE[5] = {0}; // 0: no, 1: slow, 2: fast, 3:faster
+int ZX_JOYSTICKS_INVERTED[5] = {0}; // 0: default, |1: invert X, |2: invert Y
+int ZX_JOYSTICKS_DEADZONE[5] = {0}; // [0..100]% // 0x7fff(X) | 0x7fff(Y)
+
 const char *ZX_PAD_STR[] = {"⭠","⭢","⭡","⭣","\4A\7","\2B\7","\5X\7","\6Y\7","LB","RB","LT","RT","LS","RS","Bk","St"};
-int ZX_PAD[16] = {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB,'Z'};  // redefineable gamepad keys
-int ZX_PAD_[16] = {0}; // temporary values while remapping. array not serialized
-int ZX_PAD_PRESET_[16] = {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB,'Z'};
+int ZX_GAMEPAD[5+1+1][16] = {
+    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB},  // redefineable cursor   keys
+    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB},  // redefineable gamepad1 keys
+    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB},  // redefineable gamepad2 keys
+    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB},  // redefineable gamepad3 keys
+    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB},  // redefineable gamepad4 keys
+    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB},  // preset
+    {0},                                      // temporary values while remapping
+};
+#define ZX_GAMEPAD_PRESET_ ZX_GAMEPAD[5]
+#define ZX_GAMEPAD_TEMP_   ZX_GAMEPAD[6]
+int ZX_PLAYERNUM = 0; // temp
+#define ZX_PAD (ZX_GAMEPAD[ZX_PLAYERNUM])
 
 int   ZX_TABS = 2; // [2]=>'A' current game letter being browsed. may be a letter or special char.
 char *ZX_TITLE = 0; // current titlebar
@@ -182,8 +195,6 @@ char *ZX_SHADER = 0; // path to the custom shader file
     X(ZX_CRT) \
     X(ZX_AY) \
     X(ZX_TURBOROM) \
-    X(ZX_JOYSTICK) \
-    X(ZX_JOYSTICK_AUTOFIRE) \
     X(ZX_RUNAHEAD) \
     X(ZX_MOUSE) \
     X(ZX_MOUSE_AUTOFIRE) \
@@ -197,9 +208,16 @@ char *ZX_SHADER = 0; // path to the custom shader file
     X(ZX_MULTIFACE) \
     X(ZX_FN[0]) X(ZX_FN[1]) X(ZX_FN[2]) X(ZX_FN[3]) X(ZX_FN[4]) X(ZX_FN[5]) \
     X(ZX_FN[6]) X(ZX_FN[7]) X(ZX_FN[8]) X(ZX_FN[9]) X(ZX_FN[10]) X(ZX_FN[11]) X(ZX_FN[12]) \
-    X(ZX_PAD[0]) X(ZX_PAD[1]) X(ZX_PAD[2]) X(ZX_PAD[3]) X(ZX_PAD[4]) X(ZX_PAD[5]) \
-    X(ZX_PAD[6]) X(ZX_PAD[7]) X(ZX_PAD[8]) X(ZX_PAD[9]) X(ZX_PAD[10]) X(ZX_PAD[11]) \
-    X(ZX_PAD[12]) X(ZX_PAD[13]) X(ZX_PAD[14]) X(ZX_PAD[15]) \
+    X(ZX_JOYSTICKS[0]) X(ZX_JOYSTICKS_AUTOFIRE[0]) X(ZX_JOYSTICKS_DEADZONE[0]) X(ZX_JOYSTICKS_INVERTED[0]) \
+    X(ZX_JOYSTICKS[1]) X(ZX_JOYSTICKS_AUTOFIRE[1]) X(ZX_JOYSTICKS_DEADZONE[1]) X(ZX_JOYSTICKS_INVERTED[1]) \
+    X(ZX_JOYSTICKS[2]) X(ZX_JOYSTICKS_AUTOFIRE[2]) X(ZX_JOYSTICKS_DEADZONE[2]) X(ZX_JOYSTICKS_INVERTED[2]) \
+    X(ZX_JOYSTICKS[3]) X(ZX_JOYSTICKS_AUTOFIRE[3]) X(ZX_JOYSTICKS_DEADZONE[3]) X(ZX_JOYSTICKS_INVERTED[3]) \
+    X(ZX_JOYSTICKS[4]) X(ZX_JOYSTICKS_AUTOFIRE[4]) X(ZX_JOYSTICKS_DEADZONE[4]) X(ZX_JOYSTICKS_INVERTED[4]) \
+    X(ZX_GAMEPAD[0][0]) X(ZX_GAMEPAD[0][1]) X(ZX_GAMEPAD[0][2]) X(ZX_GAMEPAD[0][3]) X(ZX_GAMEPAD[0][4]) X(ZX_GAMEPAD[0][5]) X(ZX_GAMEPAD[0][6]) X(ZX_GAMEPAD[0][7]) X(ZX_GAMEPAD[0][8]) X(ZX_GAMEPAD[0][9]) X(ZX_GAMEPAD[0][10]) X(ZX_GAMEPAD[0][11]) X(ZX_GAMEPAD[0][12]) X(ZX_GAMEPAD[0][13]) X(ZX_GAMEPAD[0][14]) X(ZX_GAMEPAD[0][15]) \
+    X(ZX_GAMEPAD[1][0]) X(ZX_GAMEPAD[1][1]) X(ZX_GAMEPAD[1][2]) X(ZX_GAMEPAD[1][3]) X(ZX_GAMEPAD[1][4]) X(ZX_GAMEPAD[1][5]) X(ZX_GAMEPAD[1][6]) X(ZX_GAMEPAD[1][7]) X(ZX_GAMEPAD[1][8]) X(ZX_GAMEPAD[1][9]) X(ZX_GAMEPAD[1][10]) X(ZX_GAMEPAD[1][11]) X(ZX_GAMEPAD[1][12]) X(ZX_GAMEPAD[1][13]) X(ZX_GAMEPAD[1][14]) X(ZX_GAMEPAD[1][15]) \
+    X(ZX_GAMEPAD[2][0]) X(ZX_GAMEPAD[2][1]) X(ZX_GAMEPAD[2][2]) X(ZX_GAMEPAD[2][3]) X(ZX_GAMEPAD[2][4]) X(ZX_GAMEPAD[2][5]) X(ZX_GAMEPAD[2][6]) X(ZX_GAMEPAD[2][7]) X(ZX_GAMEPAD[2][8]) X(ZX_GAMEPAD[2][9]) X(ZX_GAMEPAD[2][10]) X(ZX_GAMEPAD[2][11]) X(ZX_GAMEPAD[2][12]) X(ZX_GAMEPAD[2][13]) X(ZX_GAMEPAD[2][14]) X(ZX_GAMEPAD[2][15]) \
+    X(ZX_GAMEPAD[3][0]) X(ZX_GAMEPAD[3][1]) X(ZX_GAMEPAD[3][2]) X(ZX_GAMEPAD[3][3]) X(ZX_GAMEPAD[3][4]) X(ZX_GAMEPAD[3][5]) X(ZX_GAMEPAD[3][6]) X(ZX_GAMEPAD[3][7]) X(ZX_GAMEPAD[3][8]) X(ZX_GAMEPAD[3][9]) X(ZX_GAMEPAD[3][10]) X(ZX_GAMEPAD[3][11]) X(ZX_GAMEPAD[3][12]) X(ZX_GAMEPAD[3][13]) X(ZX_GAMEPAD[3][14]) X(ZX_GAMEPAD[3][15]) \
+    X(ZX_GAMEPAD[4][0]) X(ZX_GAMEPAD[4][1]) X(ZX_GAMEPAD[4][2]) X(ZX_GAMEPAD[4][3]) X(ZX_GAMEPAD[4][4]) X(ZX_GAMEPAD[4][5]) X(ZX_GAMEPAD[4][6]) X(ZX_GAMEPAD[4][7]) X(ZX_GAMEPAD[4][8]) X(ZX_GAMEPAD[4][9]) X(ZX_GAMEPAD[4][10]) X(ZX_GAMEPAD[4][11]) X(ZX_GAMEPAD[4][12]) X(ZX_GAMEPAD[4][13]) X(ZX_GAMEPAD[4][14]) X(ZX_GAMEPAD[4][15]) \
     X(ZX_ZOOM) X(ZX_FULLSCREEN) X(ZX_WAVES) X(ZX_LENSLOK) X(ZX_SHADED) X(ZX_LOBBY) X(ZX_HORACE) \
     X(ZX_BLUR) X(ZX_BLOOM) X(ZX_TABS) X(ZX_STEREO) X(ZX_FLASHLOAD) X(ZX_PAUSE) X(ZX_CONSOLE) X(ZX_TURBOSOUND)
 
@@ -343,6 +361,7 @@ int file_is_supported(const char *filename, int skip) {
 
 #include "zx_ay.h"
 #include "zx_dis.h"
+#include "zx_txt.h"
 #include "zx_rom.h"
 #include "zx_dsk.h"
 #include "zx_tap.h" // requires page128
@@ -521,9 +540,15 @@ void ZXJoystick(int *j, int up, int down, int left, int right, int fire) {
     if(fire)  ZXKey(j[4]);
 }
 
-void ZXJoysticks(int up, int down, int left, int right, int fire) {
+void ZXJoysticksClear() {
+    kempston = 0;
+    kempston2 = 0;
+    fuller = 255;
+}
+
+void ZXJoysticks(int PLAYERNUM, int up, int down, int left, int right, int fire) {
     // 0:off,1:cursor,2:kempston,4:sinclair1,8:sinclair2,16:fuller,32:kempstonB,64:kempstonC
-    int joy = ZX_JOYSTICK;
+    int joy = ZX_JOYSTICKS[PLAYERNUM];
 
     // press SHIFT with cursor keys only under BASIC. ie, do not press SHIFT during games.
     // reasoning: conflicts with many games (Gauntlet, Emlyn Hughes, etc) that use SHIFT key actively
@@ -550,14 +575,14 @@ void ZXJoysticks(int up, int down, int left, int right, int fire) {
         { ZX_5,ZX_8,ZX_7,ZX_6,ZX_0,ZX_0 }, // cursor
     }, *user = mappings[joy>>8];
 
-    if( joy > 255) ZXJoystick(user, up, down, left, right, fire);
-    if( joy &  8 ) ZXJoystick(mappings[countof(mappings)-3], up, down, left, right, fire);
-    if( joy &  4 ) ZXJoystick(mappings[countof(mappings)-2], up, down, left, right, fire);
-    if( joy &  1 ) ZXJoystick(mappings[countof(mappings)-1], up, down, left, right, fire), basic && (up|down|left|right) && ZXKey(ZX_SHIFT);
+    if(joy> 255) ZXJoystick(user, up, down, left, right, fire);
+    if(joy &  8) ZXJoystick(mappings[countof(mappings)-3], up, down, left, right, fire);
+    if(joy &  4) ZXJoystick(mappings[countof(mappings)-2], up, down, left, right, fire);
+    if(joy &  1) ZXJoystick(mappings[countof(mappings)-1], up, down, left, right, fire), basic && (up|down|left|right) && ZXKey(ZX_SHIFT);
 
-    kempston = joy & 2 ? (fire<<4)|(up<<3)|(down<<2)|(left<<1)|right : 0;
-    kempston2 = joy & 32 ? (fire<<4)|(up<<3)|(down<<2)|(left<<1)|right : 0;
-    fuller = 255 ^ (joy & 16 ? (fire<<7)|(right<<3)|(left<<2)|(down<<1)|up : 0);
+    if(joy &  2) kempston = (fire<<4)|(up<<3)|(down<<2)|(left<<1)|right;
+    if(joy & 32) kempston2 = (fire<<4)|(up<<3)|(down<<2)|(left<<1)|right;
+    if(joy & 16) fuller = 255 ^ ((fire<<7)|(right<<3)|(left<<2)|(down<<1)|up);
 }
 
 // fdc
@@ -677,7 +702,8 @@ void config(int ZX) {
 
     if( ZX_PENTAGON ) { // ZX == 128
         ZX_TS = 71680;
-        ZX_FREQ = 3500000;
+        //ZX_FREQ = 3500000; //< this is the correct one!
+        //ZX_FREQ = 3546894; //< better quality?
     }
 
     if( ZX >= 210 ) { // +2A/+3
@@ -990,7 +1016,7 @@ void sys_audio() {
 
         if( ZX_AY == 0 ) ay_sample = ay_sample1 = ay_sample2 = 0; // no ay
 
-        if( ZX_AY == 1 ) if( even & 1 ) {  // half frequency
+        if( ZX_AY == 1 ) if( even & 1 ) {  // half frequency. every 128:256
             ay38910_tick(&ay[0], output+1), ay_sample1 = ay_sample2 = ay[0].sample;
 
             if( ZX_TURBOSOUND )
@@ -999,7 +1025,7 @@ void sys_audio() {
             ay_sample = (ay_sample1 + ay_sample2) * 0.5f; // both
         }
 
-        if( ZX_AY == 2 ) if( !(even & 0x3F) ) { // 4/256 frequency. same as `even == 0 || even == 0x80`
+        if( ZX_AY == 2 ) if( !(even & (0x3F>>2)) ) { // every 16:256 calls
             ay_sample1 = ay_sample2 = ayumi_render(&ayumi[0], ayumi_fast, 1, output+1) * 2;
 
             if( ZX_TURBOSOUND )
@@ -2113,7 +2139,7 @@ void boot0(int model, unsigned FLAGS) {
       {0.90, 0.50, 0.10}, // CBA
     };
     // assert( ayumi_freq < 2822400 );
-    if (!ayumi_configure(&ayumi[0], is_ym, (2822400/2) * (ZX_FREQ / 3546894.0), AUDIO_FREQUENCY)) { // ayumi is AtariST based, i guess. use 2mhz clock instead
+    if (!ayumi_configure(&ayumi[0], is_ym, ((2822400/2)>>2) * (ZX_FREQ / 3546894.0), AUDIO_FREQUENCY)) { // ayumi is AtariST based, i guess. uses 2mhz clock instead
         die("ayumi_configure error (wrong ay freq?)");
     }
     const double *pan = pan_modes[1*(AUDIO_CHANNELS==2)];   // ABC or mono
@@ -2375,11 +2401,11 @@ int guess_v2(const char *filename) {
     eject();
 
     // algorithm:
-    // 1st) read zxdb info (Elite: 48k/128k, so 128k), unless
-    // 2nd) read zip filename recursively (Elite48.zip, so 48k), unless
-    // 3rd) read filename info (Elite128_2.tzx, so 128k), unless
-    // 4th) read basic program "ELITE48", so 48k, unless
-    // 5th) re-selected model from UI
+    // 1st) read zxdb info (Elite: 48k+128k, so choose 128k because it is the better choice), unless
+    // 2nd) read zip filename recursively (Elite48.zip, so choose 48k), unless
+    // 3rd) read filename info inside .zip (Elite128_2.tzx, so choose 128k), unless
+    // 4th) read basic program "ELITE48", so choose 48k, unless
+    // 5th) model is forced from UI
     // local cases: plyuk.zip/plyuk128.bas, ringo.zip/ringo128.bas td128/td128.bas
     // local cases: oldtower(48k).tap, oldtower(128k).tap, oldtower(pentagon).tap
     // zxdb  cases: elite, saboteur2, cabal, narc, nigelmansell, lonewolf3, ...
@@ -2601,9 +2627,9 @@ int are_sequential_urls(const char *url1, const char *url2) {
     if( len1 == len2 ) {
         int diff = 0;
         for( int i = 0; i < len1; ++i ) {
-            diff += base1[i] - base2[i];
+            diff += base2[i] - base1[i];
         }
-        return diff == 1;
+        return (diff * diff) == 1;
     }
     return 0;
 }
