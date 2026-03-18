@@ -1,3 +1,23 @@
+/* planned for v1.15
+
+- [ ] unify navigation within zxdb browser + search tab views ffs!
+- [ ] irc/lobby (mount server)
+- [ ] animated savegames
+- [ ] <3<3<3 rating system
+- [ ] standalone .ini options
+- [ ] optimize flashload via better rom traps. current CALL (HL) opcode is just expensive
+- [ ] allow to mount custom roms with ui_dialog_combo()
+- [ ] ay glitches (ddragon.tap), robocop in P128. I suspect this is due to INT sync which also relates to:
+  - [ ] pentagon bottom line
+- [ ] ps3 gamepad usb (worth?)
+- [ ] multiface
+- [ ] multiplayer
+- [ ] 57 Documentation please!
+- [ ] ARM builds (Linux+Win)
+- [ ] NoZXDB builds
+
+*/
+
 #define CROSSHAIR_STR     "\b\b\b\b\b\b\b"
 #define CROSSHAIR2_STR    ""
 #define TANK_STR          "𜲟"
@@ -15,6 +35,7 @@
 #define DOWNLOAD_STR      "⭣\b\b\b\b\b\b\b_"
 #define STOP_STR          "■"
 #define RETURN_STR        "↲"
+#define CIRCLE_SOLID_STR  ""
 
 #define AUTOFIRE_STR  CROSSHAIR_STR
 #define FIRE_STR      CROSSHAIR_STR
@@ -23,6 +44,7 @@
 #define SAVE_STR      DISK_STR
 #define TAPE_STR      FF_STR
 #define TRANSLATE_STR AE_STR // FL_STR
+#define REC_STR       CIRCLE_SOLID_STR
 #define LOBBY_STR2(c) (c ? PACMAN_ALT_STR : PACMAN_STR)
 
 #include <stdio.h>
@@ -73,7 +95,7 @@ void loggers(int m);
 // zxdb, custom tiny zxdb fmt, embedded zxdb, zxdb cache, zxdb download on demand, zxdb gallery
 // ay player, pzx, rzx (wip), redefineable FN keys, mpg recording, mp4 recording, nmi, zx palettes,
 // gamepads, gamepad bindings, turbosound (turboAY), autofire, alt z80 rates, media selector,
-// border effects, border overscan, rainbow graphics, multicolor, HAL10H8 bugs, zoom x1..x4,
+// border effects, border overscan, rainbow graphics, multicolor, HAL10H8 bugs, zoom x1..x8,
 // lenslok, resizeable, ultrawide ula, host keyboard, custom shaders, screenmate, tape counter,
 // stereo ABC/ACB, lobby chat, flashload, gamepad x4
 // glue sequential tzx/taps in zips (side A) -> side 1 etc)
@@ -138,7 +160,7 @@ void loggers(int m);
 // [ ] contention+pzx: lonewolf128k.pzx
 // [ ] flashing console window while opening https links (windows, release builds), probably recording too (popen)
 // [ ] load snowhold.tap, somehow I==0x40 can last after reset/app restart
-// [ ] dsk sideB : spaceharrier2 and myth cases
+// [x] dsk sideB : spaceharrier2 and myth cases
 // [ ] tzx sideB : alien syndrome (Dro), alien syndrome (RAD)
 // [ ] pzx/csw/gdb + turborom
 // [ ] TTRacer WITHOUT turborom
@@ -298,7 +320,7 @@ void loggers(int m);
 // [ ] XL1 (Compilation)
 #endif
 
-#define SPECTRAL "v1.14"
+#define SPECTRAL "v1.15-WIP"
 
 #ifndef DEV
 #if NDEBUG >= 2
@@ -411,7 +433,7 @@ void loggers(int m);
 
 // 384x304 to fit border_break.trd resolution
 enum { _256 = 384, _255 = _256-1, _257 = _256+1, _32 = (_256-256)/2 };
-enum { _192 = 304, _191 = _192-1, _193 = _192+1, _24 = (_192-192)/2 };
+enum { _192 = 304-1, _191 = _192-1, _193 = _192+1, _24 = (_192-192)/2 }; //-1 to address partial bottom line in P128
 
 extern struct Tigr* app;
 #define _319 (_320-1)
@@ -1002,17 +1024,6 @@ void input() {
     KEYBINDING(12);
 }
 
-void draw_redefinables() {
-    ui_dialog_option(0,"<ESC" PLAY_STR "\f","Game browser", 0,NULL );
-    for( int i = 1; i <= 12; ++i ) {
-        int cmd = vk_find(ZX_FN[i]);
-        const char *icon = cmd >= 0 ? commands[cmd - 1] : "";
-        const char *text = cmd >= 0 ? commands[cmd] + 5 : NULL;
-        if( text && strchr(text, '\n') ) text = va("%.*s", (int)(strchr(text, '\n') - text), text);
-        ui_dialog_option(1,va("\b\bF%d%s",i,icon),text, 'F00'+i,NULL );
-    }
-}
-
 
 
 
@@ -1299,9 +1310,9 @@ void draw_ui() {
         ui_y--;
 
         ui_x = chr_x + (ZX_FULLSCREEN ? 2 : 3) * 8;
-        if( ZX_FULLSCREEN ) if( ui_click("- Quit Spectral -", "\b╳\f\f") ) cmdkey = 'QUIT';
         if( ui_click("- Screenshot -\n(Right-click captures UI)", "%c", SNAP_CHR) ) cmdkey = rmb_up ? 'PIC_':'PIC'; // send screenshot command
-        if( ui_click("- VideoREC -\n(Right-click records UI)", "\f\f" )) cmdkey = rmb_up ? 'REC_':'REC';
+        if( ui_click("- VideoREC -\n(Right-click records UI)", "\f\f" REC_STR "\f" )) cmdkey = rmb_up ? 'REC_':'REC';
+        if( ZX_FULLSCREEN ) if( ui_click("- Quit Spectral -", "╳") ) cmdkey = 'QUIT';
 
         ///if( ui_press("- Full Throttle -\n(hold)", "%c\b\b\b%c\b\b\b%c%d\n\n", PLAY_CHR,PLAY_CHR,PLAY_CHR,(int)fps) ) cmdkey = 'MAX';
 
@@ -1321,8 +1332,12 @@ void draw_ui() {
                     PC(cpu) = 0;
                     memset32(VRAM+(rand()&3), rnd, 6912/4);
                 }
-                else
-                cmdkey = 'WIPE', rnd=0; //'MODE', cmdarg = va("%d",ZX+ZX_PENTAGON);
+                else {
+                    rnd = 0;
+                    rom_restore();
+//                    cmdkey = ZX_AUTOLOAD ? 'WIPE' : 'BOOT';
+                    cmdkey = 'BOOT'; //'MODE', cmdarg = va("%d",ZX+ZX_PENTAGON);
+                }
           }
 //        if( ui_click("- Clear Medias -", "\f\f") ) cmdkey = 'WIPE';
 //        if( ui_click(rmb_held*23+"- Magic button (NMI) -\0- Magic button (NMI) -\nGenerates a Non-Maskable Interrupt", "") ) cmdkey = 'NMI';
@@ -1339,9 +1354,9 @@ void draw_ui() {
         const char *models[] = { [1]=" 16K",[3]=" 48K",[8]="128K",[9]="P128",[12]=" +2",[13]=" +2A",[18]=" +3" };
         if( ui_click(rmb_held*17+"- Toggle Model -\0- Toggle Model -\n16, 48, 128, +2, +2A, +3, Pentagon\n", "%s%s\n\n",models[(ZX/16)|ZX_PENTAGON],ZX_ALTROMS ? "!":"")) if(rmb_up) cmdkey = 'MODE'; else
         {
-            int mode = ZX + ZX_PENTAGON;
             ui_dialog_new("- Toggle Model -");
 
+            zx_prev1 = zxmodes[ZX|ZX_PENTAGON];
             ui_dialog_combo(1,"<ZX Spectrum \00516K|ZX Spectrum \00548K|ZX Spectrum \005128K|ZX Spectrum \005+2|ZX Spectrum \005+2A|ZX Spectrum \005+3|ZX \005Pentagon",NULL,&zx_prev1,0,6);
             ui_dialog_separator();
             ui_dialog_separator();
@@ -1359,23 +1374,23 @@ void draw_ui() {
             ui_dialog_ok();
         }
 
+        static int load_combined; do_once load_combined = (ZX_FASTTAPE+ZX_TURBOROM);
+        ZX_FASTTAPE = load_combined >= 1;
+        ZX_TURBOROM = load_combined >= 2;
 
         if( ui_click(rmb_held*20+"- Loading options -\0- Toggle FastMedia -\n0:off, 1:faster media loading", TAPE_STR "\f%d", ZX_FASTTAPE )) if(rmb_up) cmdkey = 'FAST'; else
         {
             ui_dialog_new("- Loading options -");
 
-//          static int test = 1;
-//          ui_dialog_combo(1,"<\5Classic\7 loader|\5Accelerated\7 loader|\5TurboROM\7 loader|\5Flashload",NULL,&test,0,3);
-//          ui_dialog_separator();
-//          ui_dialog_separator();
+            ui_dialog_combo(1,"<\5Real-time\7 loading: standard|\5Faster\7 loading: compatible|\5Turbo\7 loading: less reliable",NULL,&load_combined,0,2);
+            ui_dialog_separator();
+            ui_dialog_separator();
 
-            ui_dialog_checkbox2(&ZX_AUTOLOAD,"<Auto load medias\n","- Load medias automatically if possible -",NULL);
-            ui_dialog_checkbox2(&ZX_FASTTAPE,"<Max speed while loading\n","- Use 100% CPU while loading medias -",NULL);
-            ui_dialog_checkbox2(&ZX_FLASHLOAD,"<FlashLoad standard .tap files\n","- Load tape files instantly where possible -",NULL);
-            ui_dialog_checkbox2(&ZX_TURBOROM,"<Use TurboROM on standard tape blocks\n","- Convert standard tape blocks to Turbo -",NULL);
+            ui_dialog_checkbox2(&ZX_AUTOLOAD,"<Auto load medias\n","- Detect model, reset and load media automatically -",NULL);
+            //ui_dialog_checkbox2(&ZX_FASTTAPE,"<Max speed while loading\n","- Use 100% CPU while loading medias -",NULL);
+            ui_dialog_checkbox2(&ZX_FLASHLOAD,"<Load .tap files instantly\n","- FlashLoad .tap files, if possible -",NULL);
+            //ui_dialog_checkbox2(&ZX_TURBOROM,"<Use TurboROM on standard tape blocks\n","- Convert standard tape blocks to Turbo -",NULL);
             ui_dialog_checkbox2(&ZX_TAPECOUNTER,"<Display tape counter\n","- Display 3-digit counter while loading -",NULL);
-            ui_dialog_checkbox2(&ZX_BROWSER,"<Mount ZXDB catalog\n","-W\fhether to browse ZXDB catalog or only local files-",NULL);
-            ui_dialog_checkbox2(&ZX_RESUME,"<Resume saved session on launch\n","-W\fhether to resume savedstate or start fresh on launch-",NULL);
             ui_dialog_separator();
 
             if(ZX_MEDIA && ZX_MEDIA[0] == '#')
@@ -1395,11 +1410,14 @@ void draw_ui() {
             ui_dialog_option(1,"OK\n",NULL,0,0);
         }
         ui_x += 8;
-        if( ui_click(rmb_held*24+"- Extra options -\0- Translate game menu -\n0:off, 1:poke game menu into English", OPTIONS_STR "\f%d\n", ZX_AUTOLOCALE)) if(rmb_up) cmdkey = 'TENG'; else
+        if( ui_click(rmb_held*24+"- Extra options -\0- Translate game menu -\n0:off, 1:poke game menu into English", OPTIONS_STR "%d\n", ZX_AUTOLOCALE)) if(rmb_up) cmdkey = 'TENG'; else
         {
             ui_dialog_new("- Extra options and tools -");
             ui_dialog_option(1,"<" TRANSLATE_STR " Translate game menu\n\n","-Poke game menu into English-",'TENG',"1");
             ui_dialog_option(1|4,"\6" FOLDER_STR " \7Build standalone player from game\n\n","- Select any game -",'MAKE',NULL);
+            ui_dialog_checkbox2(&ZX_BROWSER,"< \b\bMount ZXDB catalog\n","-W\fhether to browse ZXDB catalog or only local files-",NULL);
+            ui_dialog_checkbox2(&ZX_PAUSE,"< \b\bPaused if no input focus\n","-Pause emulation while minimized-",NULL);
+            ui_dialog_checkbox2(&ZX_RESUME,"< \b\bResume saved session on launch\n","-W\fhether to resume savedstate or start fresh on launch-",NULL);
             ui_dialog_separator();
             ui_dialog_option(1,"OK\n",NULL,0,NULL);
         }
@@ -1523,23 +1541,29 @@ void draw_ui() {
         static int monitor_KL; do_once monitor_KL = ZX_KLMODE;
         if( monitor_KL != ZX_KLMODE ) monitor_KL = ZX_KLMODE, ZX_KLMODE_PATCH_NEEDED = 1;
 
-        if( ui_click(rmb_held*31+"- Toggle 48-BASIC input mode -\0- Toggle 48-BASIC input mode -\nK:token based, L:letter based", "~%c~\f%d", ZX_KLMODE ? 'L' : 'K', ZX_KLMODE) ) if(rmb_up) cmdkey = 'KL'; else
+        if( ui_click(rmb_held*31+"- Keyboard options -\0- Toggle 48-BASIC input mode -\nK:token based, L:letter based", "~%c~\f%d", ZX_KLMODE ? 'L' : 'K', ZX_KLMODE) ) if(rmb_up) cmdkey = 'KL'; else
         {
-            ui_dialog_new("- Keyboard bindings and options -");
+            ui_dialog_new("- Keyboard options and bindings -");
 
-            draw_redefinables();
+            ui_dialog_option(0,"<ESC" PLAY_STR "\f","Game browser", 0,NULL );
+            for( int i = 1; i <= 12; ++i ) {
+                int cmd = vk_find(ZX_FN[i]);
+                const char *icon = cmd >= 0 ? commands[cmd - 1] : "";
+                const char *text = cmd >= 0 ? commands[cmd] + 5 : "-Click to assign action to this FN key-";
+                if( text && strchr(text, '\n') ) text = va("%.*s", (int)(strchr(text, '\n') - text), text);
+                ui_dialog_option(1,va("\b\bF%d%s",i,icon),text, 'F00'+i,NULL );
+            }
+
             ui_dialog_separator();
             ui_dialog_separator();
 
             //ui_dialog_option(1,( ZX_KLMODE)+"\5Tokens\n","Use traditional input mode",'KL',"0");
             //ui_dialog_option(1,(!ZX_KLMODE)+"\5Letters\n","Use modern input mode",'KL',"1");
-            ui_dialog_checkbox2(&ZX_KLMODE,"<Type letters in 48-BASIC mode\n","W\1hether to type tokens or letters in 48-BASIC",NULL); // 'KL'
+            ui_dialog_checkbox2(&ZX_KLMODE,"<Type letters in 48-BASIC mode\n","W\fhether to type tokens or letters in 48-BASIC",NULL); // 'KL'
 
             //ui_dialog_option(1,(!!issue2)+"\5Classic keyboard (issue 2)\n",NULL,'KEYB',"3");
             //ui_dialog_option(1,( !issue2)+"\5Earlier keyboard (issue 3)\n",NULL,'KEYB',"2");
-            ui_dialog_checkbox2(&issue2,"<Earlier keyboard type (issue 2)\n","Improves compatibility with a few older games",NULL); // 'KEYB'
-
-            ui_dialog_checkbox2(&ZX_PAUSE,"<Paused if no input focus\n","-Pause emulation while minimized-",NULL);
+            ui_dialog_checkbox2(&issue2,"<Earlier keyboard type (issue 2)\n","Im\fproves com\fpatibility with a few older games",NULL); // 'KEYB'
 
             ui_dialog_separator();
             ui_dialog_option(1,1/*(!ZX_AUTOLOCALE)*/+"\5Paste ","Paste clipboard contents",'CLIP',"1");
@@ -1573,7 +1597,7 @@ void draw_ui() {
     }
 
     if( record_enabled() && ZXFlashFlag ) {
-        ui_print(ui, _320-8*1-3, 0*11+4-2+2+1-2-1, ui_colors, "\2\7" );
+        ui_print(ui, _320-8*1-3-8*ZX_FULLSCREEN, 0*11+4-2+2+1-2-1, ui_colors, "\2" REC_STR "\7" );
     }
 
 #if 1
@@ -1780,7 +1804,7 @@ char* game_browser(int version) { // returns true if loaded
     if( !numgames && !zxdb_loaded() ) {
         do_once {
             uint64_t then = time_ns();
-            const char *folder = "./games/";
+            const char *folder = ZX_FOLDER;
             #if TESTS
             folder = "./src/tests/";
             #endif
@@ -2641,7 +2665,14 @@ if( do_runahead == 0 ) {
             break; case 'REC2':
 
             break; case 'TURB':  ZX_TURBOROM ^= 1; if(tape_inserted()) boot(ZX, 0|KEEP_MEDIA), reload(ZX, 1); // toggle turborom and reload
-            break; case 'BOOT':  reset(0|KEEP_MEDIA), reload(ZX, 1);
+            break; case 'CLIP':  if( !app_clipboard ) app_clipboard = tigrGetClipboard(app);
+            break; case 'POKE':  pok_apply(cmdarg_);
+
+            break; case 'BOOT':  reset(0|KEEP_MEDIA); if(cmdarg_ && atoi(cmdarg_)) reload(ZX, 1);
+
+                if(rom[0x03] == 0x76) boot(ZX, 0); // also wipe media on DI+HALT case (our .scr viewer) // @todo: verify
+                if(rom[0x38] == 0xFB) boot(ZX, 0); // wipe on EI case (our .ay player)
+
             break; case 'NMI':   if( pins & Z80_NMI ) pins &= ~Z80_NMI; else pins |= Z80_NMI; RZX_reset();
 
                 if(rom[0x03] == 0x76) boot(ZX, 0); // also wipe media on DI+HALT case (our .scr viewer) // @todo: verify
@@ -2658,13 +2689,22 @@ if( do_runahead == 0 ) {
                 rompentagon128 = rompentagon128_bak;
             #endif
 
-                reset(0); ZXDB = zxdb_free(ZXDB); if(ZX_MEDIA) (free(ZX_MEDIA), ZX_MEDIA = 0); if(ZX_TITLE) (free(ZX_TITLE), ZX_TITLE = 0); titlebar(""); // clear media    KEEP_MEDIA/*|QUICK_RESET*/);
+                int wipe_media = cmdarg ? atoi(cmdarg) : 1;
+                if( wipe_media ) {
 
-                if(rom[0x03] == 0x76) boot(ZX, 0); // also wipe media on DI+HALT case (our .scr viewer) // @todo: verify
-                if(rom[0x38] == 0xFB) boot(ZX, 0); // wipe on EI case (our .ay player)
+                    reset(0);
+
+                    ZXDB = zxdb_free(ZXDB); if(ZX_MEDIA) (free(ZX_MEDIA), ZX_MEDIA = 0); if(ZX_TITLE) (free(ZX_TITLE), ZX_TITLE = 0); titlebar(""); // clear media    KEEP_MEDIA/*|QUICK_RESET*/);
+
+                    if(rom[0x03] == 0x76) boot(ZX, 0); // also wipe media on DI+HALT case (our .scr viewer) // @todo: verify
+                    if(rom[0x38] == 0xFB) boot(ZX, 0); // wipe on EI case (our .ay player)
+
+                } else {
+
+                    reset(0|KEEP_MEDIA), reload(ZX, 1); // reset without touching medias. redo turbo data if needed
+
+                }
             
-            break; case 'CLIP':  if( !app_clipboard ) app_clipboard = tigrGetClipboard(app);
-            break; case 'POKE':  pok_apply(cmdarg_);
             break; case 'MODE': {
                 // cycle
                 static int models[] = { 16, 48, 128, 200, 210, 300, 128|1 };

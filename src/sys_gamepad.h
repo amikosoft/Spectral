@@ -136,6 +136,13 @@ unsigned gamepad_update(GAMEPAD_DEVICE dev, float rumbleA, float rumbleB, float 
 // gamepad id [1,2,3,4] -> status from previous frame
 // gamepad id [0] -> update controller status (during next frame)
 unsigned gamepad3(int id, float deadzoneX, float deadzoneY) {
+
+#ifdef __linux__
+
+    return 0; // Lubuntu16: current 3rd_gamepad lib is returning noisy reads from gamepads and 2 connected devices (should be 0!)
+
+#else
+
     extern Tigr *app;
     static void *init = 0;
     if( init != app->handle ) {
@@ -155,6 +162,8 @@ unsigned gamepad3(int id, float deadzoneX, float deadzoneY) {
     }
     if( id > 0 ) return pad[(id-1) & 3];
     return old[(-id-1)&3];
+
+#endif
 }
 
 unsigned gamepad(int id) {

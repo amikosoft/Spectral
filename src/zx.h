@@ -125,10 +125,10 @@ int ZX_TURBOROM = 0; // 0: no, 1: patch rom so loading standard tape blocks is f
 int ZX_MOUSE = 1; // 0: no, 1:kempston mouse, 2:gunstick/lightgun
 int ZX_MOUSE_AUTOFIRE = 0; // 0: no, 1: slow, 2: fast, 3:faster
 int ZX_RESUME = 1; // yes/no: whether to resume last game or start fresh on launch
-int ZX_AUTOLOAD = 1;
+int ZX_AUTOLOAD = 1; // yes/no: reset ZX and load games automatically
 int ZX_AUTOPLAY = 0; // yes/no: auto-plays tapes based on #FE port reads
 int ZX_AUTOSTOP = 0; // yes/no: auto-stops tapes based on #FE port reads
-int ZX_TAPECOUNTER = 1; // yes/no
+int ZX_TAPECOUNTER = 1; // yes/no: display a NNN counter while tape loading
 int ZX_RUNAHEAD = 0; // 0: no, 1: 1-frame run-ahead, 2: 2-frame run-ahead (improved input latency)
 int ZX_ULAPLUS = 2; // 0:classic, 1: ulaplus 64color mode, 2: ulaplus/ultrawide
 int ZX_FPSMUL = 100; // fps multiplier: 0 (max), x100 (50 pal), x120 (60 ntsc), x200 (7mhz), x400 (14mhz)
@@ -182,7 +182,8 @@ int   ZX_TABS = 2; // [2]=>'A' current game letter being browsed. may be a lette
 char *ZX_TITLE = 0; // current titlebar
 char *ZX_MEDIA = 0; // current mounted game
 
-char *ZX_FOLDER = 0;
+//const
+char *ZX_FOLDER = "./"; // 0;
 
 int   ZX_SHADED = 0; // is ZX_SHADER enabled or not
 char *ZX_SHADER = 0; // path to the custom shader file
@@ -221,7 +222,7 @@ char *ZX_SHADER = 0; // path to the custom shader file
     X(ZX_GAMEPAD[4][0]) X(ZX_GAMEPAD[4][1]) X(ZX_GAMEPAD[4][2]) X(ZX_GAMEPAD[4][3]) X(ZX_GAMEPAD[4][4]) X(ZX_GAMEPAD[4][5]) X(ZX_GAMEPAD[4][6]) X(ZX_GAMEPAD[4][7]) X(ZX_GAMEPAD[4][8]) X(ZX_GAMEPAD[4][9]) X(ZX_GAMEPAD[4][10]) X(ZX_GAMEPAD[4][11]) X(ZX_GAMEPAD[4][12]) X(ZX_GAMEPAD[4][13]) X(ZX_GAMEPAD[4][14]) X(ZX_GAMEPAD[4][15]) \
     X(ZX_ZOOM) X(ZX_FULLSCREEN) X(ZX_WAVES) X(ZX_LENSLOK) X(ZX_SHADED) X(ZX_LOBBY) X(ZX_HORACE) \
     X(ZX_BLUR) X(ZX_BLOOM) X(ZX_TABS) X(ZX_STEREO) X(ZX_FLASHLOAD) X(ZX_PAUSE) X(ZX_CONSOLE) X(ZX_TURBOSOUND) \
-    X(ZX_RESUME) X(ZX_AUTOLOAD)
+    X(ZX_RESUME) X(ZX_AUTOLOAD) X(ZX_TAPECOUNTER)
 
 void logport(word port, byte value, int is_out);
 void outport(word port, byte value);
@@ -2591,7 +2592,7 @@ int load(const char *filename, int model) { // `model`: explicit model to use, o
     int hint = guess_v2(filename);
     if( model == 0 ) model = hint;
     if( model == 0 ) model = ZX|ZX_PENTAGON;
-    if( model > 0 && load_should_clear ) {
+    if( model > 0 && load_should_clear && ZX_AUTOLOAD ) {
         /**/ if( model == 129 ) boot(ZX = 129, ~0u);
         else if( model == 300 ) boot(ZX = 300, ~0u);
         else if( model == 210 ) boot(ZX = 210, ~0u);

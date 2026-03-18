@@ -80,7 +80,7 @@ jobs:
 
   build-macos-arm:
     needs: create-release
-    runs-on: macos-latest > deprecated ##macos-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
       - name: Build macOS

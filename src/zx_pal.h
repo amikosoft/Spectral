@@ -6,36 +6,36 @@
 #define gray(r,g,b) rgb(luma(r,g,b),luma(r,g,b),luma(r,g,b))
 #define hex(rrggbb) rgb((0x##rrggbb)>>24,(0x##rrggbb&0xff00)>>16,(0x##rrggbb&0xff))
 
-// palette used by ZX_PLAYER
+// default palette for the standalone player
 enum { ZX_PLAYER_PALETTE = 14 }; // vivid
 
 // first 2-digit number configures ZX_BLOOM
 const char *ZXPaletteNames[] = {
-    "00" "Spectral",
-    "00" "Modern",
-    "00" "Reborn",
-    "00" "Remix\n",
-    "00" "Merlot",
-    "00" "Fantasy",
-    "00" "Hue",
-    "00" "Dream",
-    "00" "Skin\n",
-    "00" "Pico8",
-    "00" "Petit",
-    "00" "Bringer\n",
-    "40" "Gradients", // best with ZX_BLOOM=40 ?
-    "00" "Atkinson", // probably best with ZX_BLOOM=20
-    "00" "Vivid",
-    "00" "Konni",
-    "00" "Sintez2\n",
-    "40" "CPC",
-    "00" "EGA",
-    "00" "Gameboy",
-    "20" "PCW", // best with ZX_BLOOM=20
-    "90" "Amber", // best with ZX_BLOOM=90
-    "20" "Gray", // best with ZX_BLOOM=20
-    "20" "Negative\n", // best with ZX_BLOOM=20
-    "00" "External", // must be last entry
+    /*#00*/ "00" "Spectral",
+    /*#01*/ "00" "Modern",
+    /*#02*/ "00" "Reborn",
+    /*#03*/ "00" "Remix\n",
+    /*#04*/ "00" "Merlot",
+    /*#05*/ "00" "Fantasy",
+    /*#06*/ "00" "Hue",
+    /*#07*/ "00" "Dream",
+    /*#08*/ "00" "Skin\n",
+    /*#09*/ "00" "Pico8",
+    /*#10*/ "00" "Petit",
+    /*#11*/ "00" "Bringer\n",
+    /*#12*/ "00" "Gradients", // best with ZX_BLOOM=40 ?
+    /*#13*/ "00" "Atkinson", // probably best with ZX_BLOOM=20
+    /*#14*/ "00" "Vivid",
+    /*#15*/ "00" "Konni",
+    /*#16*/ "00" "Sintez2\n",
+    /*#17*/ "40" "CPC",
+    /*#18*/ "00" "EGA",
+    /*#19*/ "00" "Gameboy",
+    /*#20*/ "20" "PCW", // best with ZX_BLOOM=20
+    /*#21*/ "90" "Amber", // best with ZX_BLOOM=90
+    /*#22*/ "20" "Gray", // best with ZX_BLOOM=20
+    /*#23*/ "20" "Negative\n", // best with ZX_BLOOM=20
+    /*#24*/ "00" "External", // must be last entry
 };
 
 rgba ZXPalettes[][64] = {
