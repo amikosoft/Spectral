@@ -1,5 +1,9 @@
 // known issues:
 
+// .dsk
+// @obo: You can pass all the Speedlock weak sector protections with two data patterns: either a fully weak sector with everything changing, or a partially weak sector. If the first 255 bytes of the sector are the same value it's a partial weak, otherwise full weak.  ALL the partial weak sector protections can be passed with 336 bytes reliable followed by 176 bytes weak/changing.
+// @obo: The true partial pattern is 256 bytes reliable, 32 bytes weak, 48 bytes reliable filler, 176 bytes weak.  The filler come after a weak patch so the FDC sync is unreliable on real hardware and the value changes, but the most of the run of 48 needs to be the same byte to pass.
+
 // .sav
 // - [x] MDA demo cannot restore the state fully (AY regs?)
 // - [x] tape marker not very exact in turborom medias
@@ -23,6 +27,8 @@
 // pzx
 // - load_flowcontrol\HollywoodPoker.pzx
 // - load_gdb\Book Of The Dead - Part 1 (CRL).pzx
+// tzx:
+// - flow
 
 // gallery
 // - 0-byte .zips on Linux
@@ -33,7 +39,7 @@
 // - JACKNIP.TAP ; difficult to get it right without hyphenation. best we could do for now is search JACKNIP%
 // - instructions: utf8 bom
 // - maps: battle valley, river raid
-// - indianajones.dsk
+// - [x] indianajones.dsk
 // - paperboy2-sidea(amstrad).dsk / sideb(zx)
 
 // embedded zxplayer
@@ -80,8 +86,6 @@
 // - osx: retina too heavy?
 // turborom:
 // - x4,x6 modes not working anymore. half bits either.
-// tzx:
-// - flow
 
 FILE *printer;
 
@@ -117,6 +121,7 @@ int ZX_RF = !DEV;
 int ZX_CRT = !DEV;
 int ZX_BLUR = 50; // 0:off .. 100:max
 int ZX_BLOOM = 0; // 0:off .. 100:max
+int ZX_GRAIN = 0; // 0:off .. 100:max
 int ZX = 128; // 16, 48, 128, 200 (+2), 210 (+2A), 300 (+3)
 int ZX_AY = 1; // 0: no, 1: fast, 2: accurate
 int ZX_PALETTE = 0; // 0: own, N: others
@@ -125,10 +130,10 @@ int ZX_TURBOROM = 0; // 0: no, 1: patch rom so loading standard tape blocks is f
 int ZX_MOUSE = 1; // 0: no, 1:kempston mouse, 2:gunstick/lightgun
 int ZX_MOUSE_AUTOFIRE = 0; // 0: no, 1: slow, 2: fast, 3:faster
 int ZX_RESUME = 1; // yes/no: whether to resume last game or start fresh on launch
-int ZX_AUTOLOAD = 1;
+int ZX_AUTOLOAD = 1; // yes/no: reset ZX and load games automatically
 int ZX_AUTOPLAY = 0; // yes/no: auto-plays tapes based on #FE port reads
 int ZX_AUTOSTOP = 0; // yes/no: auto-stops tapes based on #FE port reads
-int ZX_TAPECOUNTER = 1; // yes/no
+int ZX_TAPECOUNTER = 1; // yes/no: display a NNN counter while tape loading
 int ZX_RUNAHEAD = 0; // 0: no, 1: 1-frame run-ahead, 2: 2-frame run-ahead (improved input latency)
 int ZX_ULAPLUS = 2; // 0:classic, 1: ulaplus 64color mode, 2: ulaplus/ultrawide
 int ZX_FPSMUL = 100; // fps multiplier: 0 (max), x100 (50 pal), x120 (60 ntsc), x200 (7mhz), x400 (14mhz)
@@ -182,7 +187,8 @@ int   ZX_TABS = 2; // [2]=>'A' current game letter being browsed. may be a lette
 char *ZX_TITLE = 0; // current titlebar
 char *ZX_MEDIA = 0; // current mounted game
 
-char *ZX_FOLDER = 0;
+//const
+char *ZX_FOLDER = "./"; // 0;
 
 int   ZX_SHADED = 0; // is ZX_SHADER enabled or not
 char *ZX_SHADER = 0; // path to the custom shader file
@@ -221,7 +227,7 @@ char *ZX_SHADER = 0; // path to the custom shader file
     X(ZX_GAMEPAD[4][0]) X(ZX_GAMEPAD[4][1]) X(ZX_GAMEPAD[4][2]) X(ZX_GAMEPAD[4][3]) X(ZX_GAMEPAD[4][4]) X(ZX_GAMEPAD[4][5]) X(ZX_GAMEPAD[4][6]) X(ZX_GAMEPAD[4][7]) X(ZX_GAMEPAD[4][8]) X(ZX_GAMEPAD[4][9]) X(ZX_GAMEPAD[4][10]) X(ZX_GAMEPAD[4][11]) X(ZX_GAMEPAD[4][12]) X(ZX_GAMEPAD[4][13]) X(ZX_GAMEPAD[4][14]) X(ZX_GAMEPAD[4][15]) \
     X(ZX_ZOOM) X(ZX_FULLSCREEN) X(ZX_WAVES) X(ZX_LENSLOK) X(ZX_SHADED) X(ZX_LOBBY) X(ZX_HORACE) \
     X(ZX_BLUR) X(ZX_BLOOM) X(ZX_TABS) X(ZX_STEREO) X(ZX_FLASHLOAD) X(ZX_PAUSE) X(ZX_CONSOLE) X(ZX_TURBOSOUND) \
-    X(ZX_RESUME) X(ZX_AUTOLOAD)
+    X(ZX_RESUME) X(ZX_AUTOLOAD) X(ZX_TAPECOUNTER) X(ZX_GRAIN)
 
 void logport(word port, byte value, int is_out);
 void outport(word port, byte value);
@@ -704,7 +710,7 @@ void config(int ZX) {
 
     if( ZX_PENTAGON ) { // ZX == 128
         ZX_TS = 71680;
-        //ZX_FREQ = 3500000; //< this is the correct one!
+        ZX_FREQ = 3500000; //< this is the correct one!
         //ZX_FREQ = 3546894; //< better quality?
     }
 
@@ -2162,7 +2168,12 @@ void boot0(int model, unsigned FLAGS) {
     reset(FLAGS);
     z80_quickreset(0);
 
-//    memset(mem, 0x00, 16384*16);
+    if(0) // clear mem but leave vram entropy artifacts visible, because they're pretty when turning spectral for first time
+    for( int i = 0; i < 16; ++i ) {
+        byte *page = mem + 16384*i;
+        if( page == VRAM ) continue;
+        memset(page, 0x00, 16384);
+    }    
 }
 
 void boot(int model, unsigned FLAGS) {
@@ -2591,7 +2602,7 @@ int load(const char *filename, int model) { // `model`: explicit model to use, o
     int hint = guess_v2(filename);
     if( model == 0 ) model = hint;
     if( model == 0 ) model = ZX|ZX_PENTAGON;
-    if( model > 0 && load_should_clear ) {
+    if( model > 0 && load_should_clear && ZX_AUTOLOAD ) {
         /**/ if( model == 129 ) boot(ZX = 129, ~0u);
         else if( model == 300 ) boot(ZX = 300, ~0u);
         else if( model == 210 ) boot(ZX = 210, ~0u);

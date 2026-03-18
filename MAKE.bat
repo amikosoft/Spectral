@@ -37,7 +37,7 @@ upx -9 Spectral.linux
 #cat Spectral.linux src/res/embed src/res/zxdb/Spectral.db.gz src/res/embed > Spectral.linux
 dd if=src/res/embed >> Spectral.linux
 dd if=src/res/zxdb/Spectral.db.gz >> Spectral.linux
-dd if=src/res/embed >> Spectral.linux
+#dd if=src/res/embed >> Spectral.linux
 
 fi
 
@@ -54,7 +54,7 @@ gcc -ObjC src/app.c -I src -o ./Spectral.osx -O3 -DNDEBUG=3 -Wno-unused-result -
 #cat Spectral.osx src/res/embed src/res/zxdb/Spectral.db.gz src/res/embed > Spectral.osx
 dd if=src/res/embed >> Spectral.osx
 dd if=src/res/zxdb/Spectral.db.gz >> Spectral.osx
-dd if=src/res/embed >> Spectral.osx
+#dd if=src/res/embed >> Spectral.osx
 
 # embed icon and make .app
 test -d Spectral.app && rm -rf Spectral.app
@@ -251,7 +251,7 @@ ping -n 2 -w 1500 localhost > nul && rem wait 1s between 2 consecutive pings, so
 where /q rcedit-x64 || curl -LO https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe
 where /q rcedit-x64 && ^
 rcedit-x64 "Spectral.exe" --set-file-version "!year!.!month!.!today!.!today!!month!" && ^
-rcedit-x64 "Spectral.exe" --set-product-version "1.14" && ^
+rcedit-x64 "Spectral.exe" --set-product-version "1.15" && ^
 rcedit-x64 "Spectral.exe" --set-icon src\res\img\noto_1f47b.ico || goto error
 
 if "%__DOTNET_PREFERRED_BITNESS%"=="32" (

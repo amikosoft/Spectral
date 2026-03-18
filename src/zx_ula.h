@@ -254,7 +254,7 @@ void blur(window *win) {
 
         for(int x=0;x<((_256-_32*2)/8);x++) {
 
-        int shift = (++jj)&1;
+        int shift = (++jj)&1; // @todo: move this to flag. it gives many interesting RF patterns
         texture += shift;
 
                 // RF: hue shift
@@ -475,6 +475,15 @@ void frame(int drawmode, int do_sim) { // no render (<0), whole frame (0), scanl
         return;
 
 #if 1
+    // grain
+    int GRAIN = ZX_GRAIN * 0.63; // GRAIN [0..63]
+    if( GRAIN ) {
+        for(int i = 0; i < canvas->w*canvas->h; ++i) {
+            unsigned l = rand() & GRAIN;
+            canvas->pix[i].rgba |= tigrRGBA(l,l,l,0).rgba;
+        }
+    }
+
     // detect ZX_RF flip-flop
     static int ZX_RF_old = 1;
     int refresh = ZX_RF ^ ZX_RF_old;

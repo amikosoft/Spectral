@@ -4,10 +4,10 @@
 
 zxdb ZXDB2;
 
-rgba* thumbnail(const byte *VRAM_, int len, unsigned downfactor, int ZXFlashFlag) {
+rgba* thumbnail_inplace(const byte *VRAM_, int len, unsigned downfactor, int ZXFlashFlag, rgba *texture, const rgba *palette) {
     int w = 256 / downfactor, h = 192 / downfactor;
 
-    rgba *texture = malloc( w * h * 4 ), *cpy = texture;
+    rgba *cpy = texture;
     if( len != 6912 && len != (6912+64) && len != (6144+768*4) && len != (6144+768*8) )
         return texture; // @fixme: ula+/.ifl/.mlt 12k(T),9k(Z)oomblox
 
@@ -16,8 +16,6 @@ rgba* thumbnail(const byte *VRAM_, int len, unsigned downfactor, int ZXFlashFlag
 
     #define SCANLINE_(y) \
         ((((((y)%64) & 0x38) >> 3 | (((y)%64) & 0x07) << 3) + ((y)/64) * 64) << 5)
-
-    rgba *ZXPalette = ZXPalettes[0]; // [5] B/W palette for a good noir effect!
 
     for( int y = 0; y < 192; y += downfactor ) {
         // paper
@@ -71,6 +69,16 @@ rgba* thumbnail(const byte *VRAM_, int len, unsigned downfactor, int ZXFlashFlag
     }
 
     return cpy;
+}
+
+rgba* thumbnail(const byte *VRAM_, int len, unsigned downfactor, int ZXFlashFlag) {
+    int w = 256 / downfactor, h = 192 / downfactor;
+
+    const
+    rgba *palette = ZXPalettes[0]; // [5] B/W palette for a good noir effect!
+    rgba *texture = malloc( w * h * 4 );
+
+    return thumbnail_inplace(VRAM_, len, downfactor, ZXFlashFlag, texture, palette);
 }
 
 
@@ -182,7 +190,7 @@ bool zxdb_unpack2(char **ptr, int *len) {
         }
         return 0;
     }
-    if( !memcmp(*ptr, "PK\3\4", 4) ) { // @fixme: implement zip_openmem() in 3rd_zip.h and remove this local file
+    if( !memcmp(*ptr, "PK\3\4", 4) || !memcmp(*ptr, "PK00PK\3\4", 8) ) { // @fixme: implement zip_openmem() in 3rd_zip.h and remove this local file
         for( FILE *fp = fopen(".Spectral/$$download2.zip", "wb"); fp; fwrite(*ptr, *len, 1, fp), fclose(fp), fp = 0) 
         {}
         char *ptr2 = unzip(".Spectral/$$download2.zip/*", len);
@@ -410,7 +418,7 @@ char *zxdb_screen_async(const char *id, int *len, int factor) {
 
 char*filter; // current text filter being typed. can be NULL
 char*filters[16] = {0}; // all filters in use
-int  filters_event; // notifies both viewers (v1/v2) that filters have changed
+int  filters_event; // notifies both viewers (v1/v2) that filters have changed (1|2). |4 is used to notify that we want to initiate a filter input text programatically 
 void filters_add(const char *filter) {
     if( filter && filter[0] ) {
         if( !strcmp(filter, "?") ) return; // this is a useless filter often clicked in Labyrinth(?)() expressions
@@ -458,13 +466,15 @@ void filters_draw(Tigr *ui, int px, int py) {
 int filters_tick() { // returns true if any key was pressed
     enum { _16 = 32, _15 = _16 - 1 };
     static int chars[_16] = {0};
-    static char utf8[5+_16*6+1] = "Hint:";
+    static char utf8[5+_16*6+1] = "Find:";
     filter = utf8 + 5;
 
         int chars_count = 0;
         while(chars[chars_count] && chars_count < _16) chars_count++;
 
     int anykey = 0, done = 0, clear = 0;
+    if( filters_event & 4 ) anykey = 1, filters_event &= ~4;
+
     // Grab any chars and add them to our buffer.
     for(int idx = 0;;++idx) {
         int c = key_char(idx);
@@ -494,7 +504,7 @@ int filters_tick() { // returns true if any key was pressed
 
     // display
 
-    int visible = num_options == 1 && (options[0].flags & 2) && options[0].text[0] == 'H';
+    int visible = num_options == 1 && (options[0].flags & 2) && options[0].text[0] == 'F';
 
     if( done ) {
 //        filters_event = 1|2;
@@ -596,7 +606,7 @@ void rescan(const char *folder) {
                         int matches = 0, numfilters = 0;
                         for( int f = 0; f < countof(filters) && filters[f]; ++f, ++numfilters ) {
                             if( snprintf(wildcard, 128, "*%s*", filters[f]) )
-                                if( strmatchi(fname/*title*/, wildcard) ) ++matches;
+                                if( strmatchi(basename(fname)/*title*/, wildcard) ) ++matches;
                         }
                         if( numfilters != matches ) { continue; }
                     }
@@ -645,138 +655,6 @@ void draw_compatibility_stats(window *layer) {
 }
 
 
-char g_query[256];
-int  *queries; int numqueries;
-VAL **remotes; int numremotes;
-void search_query_v1(const char *query) {
-    g_query[0] = 0;
-    numqueries = 0;
-    numremotes = 0;
-
-    if(!query) return;
-    if(!query[0]) return;
-
-    if(!queries) queries = REALLOC((void*)queries, sizeof(int) * 65536);
-    if(!queries) return;
-
-    if( strchr(query, '*') )
-    snprintf(g_query, 256-1, "%s", query);
-    else
-    snprintf(g_query, 256-1, "*%s*", query);
-
-    // search local files for matches
-    for( int i = 0; i < numgames; ++i ) {
-        if( strmatchi(games[i],g_query) ) queries[numqueries++] = i;
-    }
-
-    // search online files for matches
-#if 1
-        // search & sort
-        free(remotes), remotes = 0;
-        remotes = map_multifind(&zxdb2, g_query, &numremotes);
-        if( numremotes ) qsort(remotes, numremotes, sizeof(VAL*), zxdb_compare_by_name);
-
-        // remove dupes (like aliases)
-        for( int i = 1; i < numremotes; ++i ) {
-            if( *(char**)remotes[i-1] == *(char**)remotes[i] ) {
-                memmove(remotes + i - 1, remotes + i, ( numremotes - i ) * sizeof(remotes[0]));
-                --numremotes;
-            }
-        }
-
-        // exclude XXX games
-        // exclude For(S)ale,(N)everReleased,Dupes(*),MIA(?) [include (A)vailable,(R)ecovered,(D)enied games]
-        // exclude demos 72..78
-        for( int i = 0; i < numremotes; ++i ) {
-            char *zx_id = (char*)*remotes[i];
-            char *years = strchr(zx_id, '|')+1; int zx_id_len = years-zx_id-1;
-            char *title = strchr(years, '|')+1; int years_len = title-years-1;
-            char *alias = strchr(title, '|')+1; int title_len = alias-title-1;
-            char *brand = strchr(alias, '|')+1; int alias_len = brand-alias-1;
-            char *avail = strchr(brand, '|')+1; int brand_len = avail-brand-1;
-            char *score = strchr(avail, '|')+1; int avail_len = score-avail-1;
-            char *genre = strchr(score, '|')+1; int score_len = genre-score-1;
-            char *tags_ = strchr(genre, '|')+1; int genre_len = tags_-genre-1;
-
-            if( avail[1] == 'X' || !strchr("ARD", avail[0]) || atoi(genre) >= 72 ) {
-                memmove(remotes + i, remotes + i + 1, ( numremotes - i - 1 ) * sizeof(remotes[0]));
-                --numremotes;
-                --i;
-            }
-        }
-#endif
-}
-char *search_results_v1() {
-    extern int cmdkey;
-    extern const char *cmdarg;
-
-    ui_at(ui, 8*1, 11*2);
-
-    for( int j = 0; j < numqueries; ++j ) {
-        int i = queries[j];
-
-        const char *sep = strrchr(games[i], *DIR_SEP_);
-        int is_dir = sep[1] == '\0', is_file = !is_dir;
-        if( is_dir ) continue;
-
-        // @fixme: scan folder
-        if( ui_click("Browse to folder", "\6" FOLDER_STR "\f\f") ) cmdkey = 'SCAN', cmdarg = va("%.*s",(int)(sep - games[i]), games[i]); // @todo: browse to containing folder
-        if( ui_click(games[i], sep+1) ) return games[i];
-        if( ui_click(NULL, "\n") );
-    }
-
-    for( int j = 0; j < numremotes; ++j ) {
-        int i = j;
-
-        const char *zx_id = (const char*)*remotes[i];
-        const char *years = strchr(zx_id, '|')+1; int zx_id_len = years-zx_id-1;
-        const char *title = strchr(years, '|')+1; int years_len = title-years-1;
-        const char *alias = strchr(title, '|')+1; int title_len = alias-title-1;
-        const char *brand = strchr(alias, '|')+1; int alias_len = brand-alias-1;
-        const char *avail = strchr(brand, '|')+1; int brand_len = avail-brand-1;
-        const char *score = strchr(avail, '|')+1; int avail_len = score-avail-1;
-        const char *genre = strchr(score, '|')+1; int score_len = genre-score-1;
-        const char *tags_ = strchr(genre, '|')+1; int genre_len = tags_-genre-1;
-
-        // should we look into alias or main title
-        char *main  = va("%.*s", title_len, title);
-        char *alt   = va("%.*s", alias_len, alias);
-        int use_alt = !strmatchi(main, g_query) && strmatchi(alt, g_query);
-        if(!use_alt) use_alt = i && atoi((char*)*remotes[i]) == atoi((char*)*remotes[i-1]);
-        if( use_alt ) {
-            char *swap = main;
-            main = alt;
-            alt = swap;
-        }
-
-        // replace year if title was never released
-        if( years[0] == '9' ) years = "?", years_len = 1; // "9999"
-
-        // replace brand if no brand is given. use 1st author if possible
-        if( brand[0] == '|' ) {
-            const char *next = strchr(zx_id, '\n');
-            if( next && next[1] == '@' ) { // x3 skips: '\n' + '@' + 'R'ole
-                brand = next+1+1+1, brand_len = strcspn(brand, "@\r\n");
-            }
-        }
-
-        // build full title and clean it up
-        char full[64];
-        snprintf(full, sizeof(full), " %s (%.*s)(%.*s)", main, years_len, years, brand_len, brand);
-        for( int i = 1; full[i]; ++i )
-            if( i == 1 || full[i-1] == '.' )
-                full[i] = toupper(full[i]);
-
-        char url[128];
-        snprintf(url, 128-1, "-Open link-\nhttps://spectrumcomputing.co.uk/entry/%.*s", zx_id_len, zx_id);
-
-        if( ui_click(url, "\x19\f\f") ) cmdkey = 'LINK', cmdarg = va("%s", url + countof("-Open link-\n")-1);
-        if( ui_click(alt[0] ? alt : main, full+1) ) browser = 0, cmdkey = 'ZXDB', cmdarg = va("#%.*s", zx_id_len, zx_id);
-        if( ui_click(NULL, "\n") ); ui_y--;
-    }
-
-    return NULL;
-}
 
 
 
@@ -1076,11 +954,8 @@ char* game_browser_v2() {
                         cmdarg = 0; // ZX_FOLDER;
                     }
                     else if( *tab == '\x18' ) {
-                        const char *search = prompt("Game search", "Wildcards allowed"/*"Either \"#zxdb-id\", \"*text*search*\", or \"/file.ext\" path"*/, "");
-                        // expand search to include more cases. eg, alien8 > ALIEN*8*, jack ii>JACK*II*, jetSetWilly>JET*SET*WILLY*
-                        // @todo: consider including this expansion into search_query_v1()
-                        if(search && search[0]) search = strchr(search, '*') ? search : zxdb_filename2title(replace(va("*%s*",search), "-", "*"),0);
-                        search_query_v1( search );
+                        filters_event |= 4;
+                        page = 0;
                     }
                     else {
                         int next[] = { [0]=3,[3]=6,[6]=12,[12]=0 };
@@ -1103,8 +978,8 @@ char* game_browser_v2() {
     if( tab < first || tab > last ) tab = left ? last : right ? first : tab;
 #endif
 
-    if(tab && *tab != 0x18) // if no search tab
-        ZX_TABS = (int)(strchr(tabs, *tab) - tabs); // store user's tab
+    if( tab && *tab != 0x18 ) // store user's tab
+        ZX_TABS = (int)(strchr(tabs, *tab) - tabs);
 
     static const char *prev = 0;
     refresh |= tab && prev != tab;
@@ -1139,25 +1014,10 @@ char* game_browser_v2() {
         }
         else
         if( *tab == '\x18' ) {
-            const char *search = prompt("Game search", "Wildcards allowed"/*"Either \"#zxdb-id\", \"*text*search*\", or \"/file.ext\" path"*/, "");
-            // expand search to include more cases. eg, alien8 > ALIEN*8*, jack ii>JACK*II*, jetSetWilly>JET*SET*WILLY*
-            // @todo: consider including this expansion into search_query_v1()
-            if(search && search[0]) search = strchr(search, '*') ? search : zxdb_filename2title(replace(va("*%s*",search), "-", "*"),0);
-
-            if( search && search[0] ) {
-                search_query_v1( search );
-
-                prev = tab;
-                return NULL;
-            } else {
-                tab = prev;
-                if(!tab) tab = prev = tabs + 2; // 'A'
-                return NULL;
+            if( !filters[0] ) {
+                filters_event |= 4;
+                page = 0;
             }
-
-            //list = 0;
-            //list_num = 0;
-            //return NULL;
         }
         else {
             page = 0;
@@ -1168,7 +1028,7 @@ char* game_browser_v2() {
         // search & sort
         free(list), list = 0;
         if( !is_bookmark_tab ) {
-            list = map_multifind(&zxdb2, va("%c*", *tab == '#' ? '?' : *tab), &list_num);
+            list = map_multifind(&zxdb2, va("%.*s*", 1, *tab == '\x18' ? (filters[0] ? "" : "\1") : *tab == '#' ? "?" : tab), &list_num);
         }
         else {
             // bookmarks
@@ -1180,15 +1040,6 @@ char* game_browser_v2() {
                 }
             }
             // list = realloc(list, list_num * sizeof(VAL*));
-        }
-        if( list_num ) qsort(list, list_num, sizeof(VAL*), zxdb_compare_by_name);
-
-        // remove dupes (like aliases)
-        for( int i = 1; i < list_num; ++i ) {
-            if( *(char**)list[i-1] == *(char**)list[i] ) {
-                memmove(list + i - 1, list + i, ( list_num - i ) * sizeof(list[0]));
-                --list_num;
-            }
         }
 
         int list_xxx = 0;
@@ -1207,7 +1058,7 @@ char* game_browser_v2() {
             else ++num_filters;
         }
 
-        for( int i = 0; i < list_num; ++i ) {
+        for( int i = 0; i < list_num; ) {
             const char *zx_id = (const char*)*list[i];
             const char *years = strchr(zx_id, '|')+1; int zx_id_len = years-zx_id-1;
             const char *title = strchr(years, '|')+1; int years_len = title-years-1;
@@ -1271,11 +1122,29 @@ char* game_browser_v2() {
             }
 
             if( excluded ) {
-                memmove(list + i, list + i + 1, ( list_num - i - 1 ) * sizeof(list[0]));
+                // remove
+                if (i + 1 < list_num) // ensure we dont remove final item in list
+                    memmove(list + i, list + i + 1, ( list_num - i - 1 ) * sizeof(list[0]));
                 --list_num;
-                --i;
+            } else {
+                // continue
+                ++i;
             }
         }
+
+        // sort list
+        if( list_num ) qsort(list, list_num, sizeof(VAL*), zxdb_compare_by_name);
+
+        // remove dupes (like aliases)
+        int i = 1;
+        while (i < list_num) {
+            if( *(char**)list[i-1] == *(char**)list[i] ) { // remove current element (i)
+                memmove(list + i, list + i + 1, (list_num - i - 1) * sizeof(list[0]));
+                --list_num;
+            }
+            else ++i;
+        }
+
 
         prev = tab;
     }
@@ -1290,7 +1159,6 @@ char* game_browser_v2() {
 
     char *rc = NULL;
     /**/ if( *tab == '\x17' ) rc = game_browser_v1(); // NULL;
-    else if( *tab == '\x18' ) rc = search_results_v1();
     else {
 
         ui_at(ui, 0, UPPER_SPACING+2*LINE_HEIGHT+2);
@@ -1435,13 +1303,13 @@ char* game_browser_v2() {
 
                 ui_label(va("%c %c%3d.%s", colors[0], loaded ? '*':' ', i+1, i==selected ? ">":" "));
 
-                if( ui_click("-Toggle bookmark-", va("%c\f", "\x10\x12"[!!star])) )
+                if( ui_click("-Toggle bookmark-", "%c\f", "\x10\x12"[!!star]) )
                     starred = 1;
 
-                if( ui_click("-Toggle compatibility flags-\n\2fail\7, \6warn\7, \4good", va("%c%s", colors[flag], flag == 0 || flag == 3 ? "✓":"╳")) ) // "":""
+                if( ui_click("-Toggle compatibility flags-\n\2fail\7, \6warn\7, \4good", "%c%s\f\f", colors[flag], flag == 0 || flag == 3 ? "✓":"╳") ) // "":""
                     flagged = 1;
 
-if(1)           if( ui_click(url, "\f\f\x19\f\f") )
+                if( ui_click(url, "%c\x19\f\f", colors[flag] ) )
                     cmdkey = 'LINK', cmdarg = va("%s", url + countof("-Open link-\n")-1);
 
                 ui_label(" ");
@@ -1456,10 +1324,8 @@ if(1)           if( ui_click(url, "\f\f\x19\f\f") )
                 int hovers = 0;
                 char *title = full_title; strstr(full_title, " (")[1] = 0;
                 if( ui_monospaced = 0, ui_button(NULL, title) ) { hovers|=ui_hover; if(ui_click) clicked = 1; }
-if(0)           if( ui_monospaced = 0, ui_button(url, "\x19") ) { hovers|=ui_hover; if(ui_click) cmdkey = 'LINK', cmdarg = va("%s", url + countof("-Open link-\n")-1); }
-                if( ui_monospaced = 0, ui_button(NULL, year_) ) { hovers|=ui_hover; if(ui_click) year_[strlen(year_)-1]=0,filters_add(year_+1); }
-                if( ui_monospaced = 0, ui_button(NULL, brand_)) { hovers|=ui_hover; if(ui_click) brand_[strlen(brand_)-1]=0,filters_add(brand_+1); }
-if(0)           if( ui_monospaced = 0, ui_button(url, "\x19") ) { hovers|=ui_hover; if(ui_click) cmdkey = 'LINK', cmdarg = va("%s", url + countof("-Open link-\n")-1); }
+                if( ui_monospaced = 0, ui_button(NULL, va("%c%s",colors[flag],year_)) ) { hovers|=ui_hover; if(ui_click) year_[strlen(year_)-1]=0,filters_add(year_+1); }
+                if( ui_monospaced = 0, ui_button(NULL, va("%c%s",colors[flag],brand_))) { hovers|=ui_hover; if(ui_click) brand_[strlen(brand_)-1]=0,filters_add(brand_+1); }
 
                 if( hovers ) {
                     if( 1 ) {

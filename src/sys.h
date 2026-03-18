@@ -35,3 +35,12 @@ static uint64_t xoroshiro128(uint64_t s[2]) {
     s[1] = (s[1]<<36 | s[1]>>28);
     return r;
 }
+static uint64_t rand64() {
+    static uint64_t s[2] = {0};
+    while( s[0] == 0 && s[1] == 0 ) {
+        uint64_t z = (uint64_t)time(NULL);
+        s[0] = splitmix64(&z);
+        s[1] = splitmix64(&z);
+    }
+    return xoroshiro128(s);
+}

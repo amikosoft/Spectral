@@ -985,7 +985,7 @@ const char* as_utf8(const char *str) { // fix legacy encodings. @todo: move to s
     while(*p && cp) p = extract_utf32(p, &cp);
     if( !*p ) return str; // p at eof, str is utf8
 
-    char *ret = va("%.*s", (int)strlen(str)*2 + 1, ""), *ptr = ret;
+    char *ret = va("%*.s", (int)strlen(str)*2 + 1, ""), *ptr = ret;
     while( *str ) {
         unsigned idx = (unsigned char)*str++;
         if( idx < 0x80 ) *ptr++ = idx;
@@ -1297,7 +1297,7 @@ void ui_notify_draw() {
 
     // hash contents
     static uint64_t hash_prev = 0;
-    uint64_t hash = fnv1a(ptr, strlen(ptr));
+    uint64_t hash = fnv1a(ptr + (*ptr < 32), strlen(ptr + (*ptr < 32))); // skips initial control code, if any
     int changed = hash ^ hash_prev; hash_prev = hash;
 
     // timing

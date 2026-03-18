@@ -226,7 +226,7 @@ exit:;
 const char *dsk_id(const void *data, int datalen) {
    static const char *ids[] = {
       "HEXAGON DISK PROTECTION", // ERR:DoubleDragonII.dsk, G-LOC(1992).dsk, Ok:Final Fight(1991)(U.S.Gold).dsk
-      "SPEEDLOCK +3 DISC PROTECTION", // Ok:AfterBurner(1988).dsk, Ok:DanDareII.dsk,TheVindicator.dsk
+      "SPEEDLOCK +3 DISC PROTECTION", // Ok:AfterBurner(1988).dsk, Ok:DanDareII.dsk,TheVindicator.dsk, Err:DragonNinja.dsk
       "Loader Copyright Three Inch Software", // Ok: DoubleDragon.dsk, P47Thunderbolt.dsk, Virus.dsk
       "NEW DISK PROTECTION SYSTEM", // North & South.dsk
       "PAUL OWENS\x80PROTECTION SYSTEM", // Cabal.dsk, BatmanTheMovie.dsk, ChaseHQ.dsk, RedHeat.dsk

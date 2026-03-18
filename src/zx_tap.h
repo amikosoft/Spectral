@@ -377,7 +377,7 @@ int tape_seeki(int at) {
     if(ZX_FLASHLOAD) if(TAP_sof) return 0;
     return voc_pos = voc && voc_len && at >= 0 && at < voc_len ? at : voc_pos;
 }
-int tape_seekf(int at) {
+int tape_seekf(float at) {
     if(ZX_FLASHLOAD) if(TAP_sof) return 0;
     return voc_pos = voc && voc_len && at >= 0 && at <= 1 ? at * (voc_len - 1) : voc_pos;
 }
