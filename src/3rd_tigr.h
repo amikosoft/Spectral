@@ -2611,6 +2611,8 @@ WPARAM MapLeftRightKeys( WPARAM vk, LPARAM lParam)
     return new_vk;
 }
 
+static int tigrWinVK(int key); //< @r-lyeh
+
 LRESULT CALLBACK tigrWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     Tigr* bmp;
     TigrInternal* win = NULL;
@@ -3218,7 +3220,7 @@ static int tigrWinVK_DEPRECATED(int key) { //< @r-lyeh
     return 0;
 }
 
-static int tigrWinVK(int key) {
+int tigrWinVK(int key) {
     if (key >= 'A' && key <= 'Z')
         return key;
     if (key >= '0' && key <= '9')

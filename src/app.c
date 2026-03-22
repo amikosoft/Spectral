@@ -1,16 +1,26 @@
+/*
+int _getch();
+#include <string.h>
+#define strdup  _strdup  // fucking m$
+#define strcmpi _strcmpi // fucking m$
+#include <stdio.h>
+#define fileno  _fileno  // fucking m$
+*/
+
 /* planned for v1.16
 
+- [x] allow to mount custom roms
 - [ ] irc/lobby (mount server)
 - [ ] <3<3<3 rating system
 - [ ] standalone .ini options
 - [ ] optimize flashload via better rom traps. current CALL (HL) opcode is just expensive
-- [ ] allow to mount custom roms with ui_dialog_combo()
 - [ ] P128: ay glitches (ddragon.tap) + robocop in P128 (INT sync?)
 - [ ] ps3 gamepad usb (worth?)
 - [ ] multiface
 - [ ] multiplayer
 - [ ] 57 Documentation please!
 - [ ] ARM builds (Linux+Win)
+- [ ] invert tape polarity (ZX == 200)
 
 */
 
@@ -317,7 +327,7 @@ void loggers(int m);
 // [ ] XL1 (Compilation)
 #endif
 
-#define SPECTRAL "v1.15"
+#define SPECTRAL "v1.16"
 
 #ifndef DEV
 #if NDEBUG >= 2
@@ -524,7 +534,7 @@ int save_config() {
     if(ZX_FOLDER && ZX_FOLDER[0]) ZX_FOLDER = strdup(relpath(ZX_FOLDER,cwd())); // @leak
     //if(ZX_SHADER && ZX_SHADER[0]) ZX_SHADER = strdup(relpath(ZX_SHADER,cwd())); // @leak
 
-    mkdir(".Spectral", 0777);
+    sys_mkdir(".Spectral", 0777);
     int errors = 0;
     for( FILE *fp = fopen(".Spectral/Spectral.ini", "wt"); fp; fclose(fp), fp = 0 ) {
         #define INI_SAVE_NUM(opt) errors += fprintf(fp, "%s=%d\n", #opt, opt) != 2;
@@ -532,6 +542,13 @@ int save_config() {
         INI_OPTIONS_NUM(INI_SAVE_NUM)
         INI_OPTIONS_STR(INI_SAVE_STR)
     }
+
+    if( !is_file(".Spectral/Spectral.48") ) errors += writefile(".Spectral/Spectral.48", rom48, 16384) ? 0 : 1;
+    if( !is_file(".Spectral/Spectral.128") ) errors += writefile(".Spectral/Spectral.128", rom128, 2*16384) ? 0 : 1;
+    if( !is_file(".Spectral/Spectral.128p") ) errors += writefile(".Spectral/Spectral.128p", rompentagon128, 2*16384) ? 0 : 1;
+    if( !is_file(".Spectral/Spectral.+2") ) errors += writefile(".Spectral/Spectral.+2", romplus2, 2*16384) ? 0 : 1;
+    if( !is_file(".Spectral/Spectral.+3") ) errors += writefile(".Spectral/Spectral.+3", romplus341, 4*16384) ? 0 : 1;
+
     return !errors;
 }
 int load_config() {
@@ -551,7 +568,13 @@ int load_config() {
         extern int cmdkey;
         extern const char* cmdarg;
         ZX_PENTAGON = ZX & 1; ZX &= ~1;
-        if(ZX_FOLDER && ZX_FOLDER[0] > 32) cmdkey = 'SCAN', cmdarg = ZX_FOLDER;
+    }
+    if( !ZX_PLAYER ) {
+        for( char *p = readfile(".Spectral/Spectral.48",   NULL); p; rom48 = p, p = NULL); // @leak
+        for( char *p = readfile(".Spectral/Spectral.128",  NULL); p; rom128 = p, p = NULL); // @leak
+        for( char *p = readfile(".Spectral/Spectral.128p", NULL); p; rompentagon128 = p, p = NULL); // @leak
+        for( char *p = readfile(".Spectral/Spectral.+2",   NULL); p; romplus2 = p, p = NULL); // @leak
+        for( char *p = readfile(".Spectral/Spectral.+3",   NULL); p; romplus341 = p, p = NULL); // @leak        
     }
     {
         int size;
@@ -559,8 +582,10 @@ int load_config() {
         unsigned char *fx = readfile(".Spectral/Spectral.fx", &size);
         ZX_SHADED *= fx && size ? load_shaderbin(fx, size), free(fx), 1 : 0;
         // load custom palette. revert option if file cannot be loaded or does not exist
+        if( ZX_PALETTE == ZX_PALETTE_EXTERNAL ) {
         unsigned char *pal = readfile(".Spectral/Spectral.pal", &size);
         ZX_PALETTE *= pal && size ? pal_loadbin(pal, size), free(pal), 1 : 0;
+        }
     }
     {
         // convert relative to absolute paths
@@ -568,6 +593,11 @@ int load_config() {
         if(ZX_MEDIA  && ZX_MEDIA[0] && ZX_MEDIA[0] != '#' ) ZX_MEDIA  = strdup(abspath(ZX_MEDIA)); // @leak
         //if(ZX_SHADER && ZX_SHADER[0]) ZX_SHADER = strdup(abspath(ZX_SHADER)); // @leak
     }
+
+    // scan
+    // if(!ZX_PLAYER)
+    // if(ZX_FOLDER && ZX_FOLDER[0] > 32) rescan(ZX_FOLDER); // cmdkey = 'SCAN', cmdarg = ZX_FOLDER;
+
     return !errors;
 }
 
@@ -1378,13 +1408,18 @@ void draw_ui() {
         static int z80_prev1, z80_prev2; do_once z80_prev1 = z80_prev2 = z80modes[ZX_FPSMUL];
         if( z80_prev1 != z80_prev2 ) if( !lmb_now ) cmdkey = 'CPU', cmdarg = va("%d", z80modes[z80_prev2 = z80_prev1]);
 
+        static int zx_rom = 0, zx_prev = 0; do_once zx_rom = zx_prev = 0;
+        if(zx_rom!=zx_prev) alert("rom changed"), zx_prev = zx_rom;
+
         const char *models[] = { [1]=" 16K",[3]=" 48K",[8]="128K",[9]="P128",[12]=" +2",[13]=" +2A",[18]=" +3" };
         if( ui_click(rmb_held*17+"- Toggle Model -\0- Toggle Model -\n16, 48, 128, +2, +2A, +3, Pentagon\n", "%s%s\n\n",models[(ZX/16)|ZX_PENTAGON],ZX_ALTROMS ? "!":"")) if(rmb_up) cmdkey = 'MODE'; else
         {
             ui_dialog_new("- Toggle Model -");
 
+            ui_dialog_option(1,"<" FOLDER_STR " ",va("-Change %s ROM-\n(Click, then cancel dialog to use default ROM)", models[(ZX/16)|ZX_PENTAGON] + (models[(ZX/16)|ZX_PENTAGON][0] == ' ')),'ROM',va("%d",(ZX/16)|ZX_PENTAGON));
+
             zx_prev1 = zxmodes[ZX|ZX_PENTAGON];
-            ui_dialog_combo(1,"<ZX Spectrum \00516K|ZX Spectrum \00548K|ZX Spectrum \005128K|ZX Spectrum \005+2|ZX Spectrum \005+2A|ZX Spectrum \005+3|ZX \005Pentagon",NULL,&zx_prev1,0,6);
+            ui_dialog_combo(1,"<  ZX Spectrum \00516K|  ZX Spectrum \00548K|  ZX Spectrum \005128K|  ZX Spectrum \005+2|  ZX Spectrum \005+2A|  ZX Spectrum \005+3|  ZX \005Pentagon",NULL,&zx_prev1,0,6);
             ui_dialog_separator();
             ui_dialog_separator();
 
@@ -1920,6 +1955,7 @@ char* game_browser(int version) { // returns true if loaded
 }
 
 void logo(void) {
+    cputs("");
     cputs("\3 \3 \3 \3 \3 \3 \3 \3 \2 \2 \2 \2 \2 \2 \2 \2 \2 \2 \2 \2 \2 \2 \2 \2 \6 \6 \6 \6 \6 \6 \6 \6 \6 \6 \6 \6 \6 \6 \6 \4 \4 \4 \4 \4 \4 \4 \4 \4 \4 \4 \4 \4 \4 \4 \4 \5 \5 \5 \5 \5 \5 \5 \5 \5 \5 \5 \5 \5 \5 \5 \5 \5 \5 \1 \1 \1 \1 \1█");
     cputs("\3█\3▀\3▀\3▀\3▀\3▀\2▀\2▀\2▀\2▀\2 \2█\2▀\2▀\2▀\2▀\2▀\2▀\2▀\2▀\2█\2 \6█\6▀\6▀\6▀\6▀\6▀\6▀\6▀\6▀\6▀\6 \6█\6▀\4▀\4▀\4▀\4▀\4▀\4▀\4▀\4▀\4 \4▀\4▀\4▀\4▀\4█\4▀\4▀\4▀\4▀\5▀\5 \5█\5▀\5▀\5▀\5▀\5▀\5▀\5▀\5▀\5▀\5 \5▀\5▀\5▀\5▀\5▀\1▀\1▀\1▀\1▀\1█\1 \1█");
     cputs("\3▀\3▀\3▀\3▀\2▀\2▀\2▀\2▀\2▀\2█\2 \2█\2 \2 \2 \2 \2 \2 \2 \2 \6█\6 \6█\6▀\6▀\6▀\6▀\6▀\6▀\6▀\6▀\6▀\6 \4█\4 \4 \4 \4 \4 \4 \4 \4 \4 \4 \4 \4 \4 \4 \4█\4 \4 \5 \5 \5 \5 \5█\5 \5 \5 \5 \5 \5 \5 \5 \5 \5 \5█\5▀\5▀\1▀\1▀\1▀\1▀\1▀\1▀\1█\1 \1█");
@@ -2062,7 +2098,7 @@ int main() {
     // fixed settings on zxplayer builds
     if( ZX_PLAYER ) {
         ZX_HORACE = 0;
-        ZX_PALETTE = ZX_PLAYER_PALETTE; // vivid
+        ZX_PALETTE = ZX_PALETTE_PLAYER; // vivid
         ZX_CONSOLE = 0;
         ZX_ULAPLUS = 0; // no ula+
         ZX_RF = strstri(__argv[0], "-rf") ? 1 : 0;
@@ -2591,7 +2627,7 @@ if( do_runahead == 0 ) {
 
         if(ZX_PALETTE_PREVIEW)
             if(draw_palette(app, ZXPalettes[ZX_PALETTE] /*ZXPalette*/, 2+ZXPaletteNames[ZX_PALETTE % countof(ZXPaletteNames)]))
-                palette_use(ZX_PALETTE);
+                palette_use(ZX_PALETTE, 1);
 
         // rec before/after UI,
         int rec(Tigr*);
@@ -2696,10 +2732,9 @@ if( do_runahead == 0 ) {
             if(cmdkey_) alert(va("command not found `%08x`", cmdkey_));
             #endif
             break; case 'SETG': ZX_BLUR = 50;
-                                ZX_BLOOM = 0;
                                 ZX_GRAIN = 0;
                                 ZX_ULAPLUS = 2;
-                                palette_use(ZX_PALETTE = 0);
+                                palette_use(ZX_PALETTE = 0, ZX_BLOOM = 1);
                                 ZX_PALETTE_PREVIEW = 0;
                                 ZX_SHADED = 0;
                                 ZX_RF = 1;
@@ -2747,6 +2782,31 @@ if( do_runahead == 0 ) {
             break; case 'TURB':  ZX_TURBOROM ^= 1; if(tape_inserted()) boot(ZX, 0|KEEP_MEDIA), reload(ZX, 1); // toggle turborom and reload
             break; case 'CLIP':  if( !app_clipboard ) app_clipboard = tigrGetClipboard(app);
             break; case 'POKE':  pok_apply(cmdarg_);
+
+            break; case 'ROM': // select a different rom
+            {
+                int model = cmdarg_ ? atoi(cmdarg_) : (ZX/16)|ZX_PENTAGON;
+
+                int romlen;
+                const char *rom = app_loadfile(ZX_FOLDER); if(rom) rom = readfile(rom, &romlen);
+                const void *roms[] = { [1]=rom48, [3]=rom48, [8]=rom128, [9]=rompentagon128, [12]=romplus2, [13]=romplus341, [18]=romplus341 };
+                const void *baks[] = { [1]=rom48_bak, [3]=rom48_bak, [8]=rom128_bak, [9]=rompentagon128_bak, [12]=romplus2_bak, [13]=romplus341_bak, [18]=romplus341_bak };
+                const int   lens[] = { [1]=1*16384, [3]=1*16384, [8]=2*16384, [9]=2*16384, [12]=2*16384, [13]=4*16384, [18]=4*16384 };
+                const char *exts[] = { [1]="48",[3]="48",[8]="128",[9]="128p",[12]="+2",[13]="+3",[18]="+3" };
+
+                unlink(roms[model]);
+                memcpy((void*)roms[model], baks[model], lens[model]);
+
+                if( rom && romlen == lens[model] ) { // select
+                    memcpy((void*)roms[model], rom, romlen);
+                    writefile(va(".Spectral/Spectral.%s", exts[model]), roms[model], lens[model]);
+                }
+
+                if(rom) free((void*)rom);
+
+                rom_restore();
+                cmdkey = 'BOOT';
+            }
 
             break; case 'BOOT':  reset(0|KEEP_MEDIA); if(cmdarg_ && atoi(cmdarg_)) reload(ZX, 1);
 
@@ -2858,8 +2918,8 @@ if( do_runahead == 0 ) {
                 if(game) free(game);
             }}
 
-            break; case 'PALB':  { const char *file = app_loadfile(ZX_FOLDER); if( file && strendi(file, ".pal") ) if( pal_load(file) ) palette_use(ZX_PALETTE = countof(ZXPalettes) - 1), cmdkey = 'PAL0'; }
-            break; case 'PAL':   ZX_PALETTE = (ZX_PALETTE+1)%countof(ZXPalettes); if(cmdarg_) ZX_PALETTE=atoi(cmdarg_);    palette_use(ZX_PALETTE), ZX_BLOOM = atoi(ZXPaletteNames[ZX_PALETTE]);
+            break; case 'PALB':  { const char *file = app_loadfile(ZX_FOLDER); if( file && strendi(file, ".pal") ) if( pal_load(file) ) palette_use(ZX_PALETTE = countof(ZXPalettes) - 1, 1), cmdkey = 'PAL0'; }
+            break; case 'PAL':   ZX_PALETTE = (ZX_PALETTE+1)%countof(ZXPalettes); if(cmdarg_) ZX_PALETTE=atoi(cmdarg_);    palette_use(ZX_PALETTE, 1);
             break; case 'PALP':  ZX_PALETTE_PREVIEW ^= 1;                         if(cmdarg_) ZX_PALETTE_PREVIEW=(ZX_PALETTE_PREVIEW * (cmdarg_[0] == '^')) ^ atoi(cmdarg_ + !isdigit(cmdarg_[0]));
             break; case 'MICE':  ZX_MOUSE = (ZX_MOUSE+1)%3;                       if(cmdarg_) ZX_MOUSE=atoi(cmdarg_);      if(ZX_GUNSTICK) ZX_JOYSTICKS[0] = 0; // cycle mouse/guns
             break; case 'ULA':   ZX_ULAPLUS = (ZX_ULAPLUS+1)%3;                   if(cmdarg_) ZX_ULAPLUS=atoi(cmdarg_);    // cycle ulaplus
@@ -3067,11 +3127,11 @@ if( do_runahead == 0 ) {
 
                 ui_dialog_checkbox2(&ZX_PALETTE_PREVIEW,"Editor  ","- Display Palette editor -",NULL);
 
-                ui_dialog_option(1,"OK\n",0,'PAL',va("%d", ZX_PALETTE));
+                ui_dialog_option(1,"OK\n",0,0,NULL); //'PAL',va("%d", ZX_PALETTE));
 
             case 'PAL1':
                 cmdkey = 'PAL1';
-                palette_use(ZX_PALETTE);
+                palette_use(ZX_PALETTE, 1);
 
             break; case 'RJOY': cmdkey = 'JOY0';
             break; case 'JOY0': {

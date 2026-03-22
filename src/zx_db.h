@@ -567,12 +567,15 @@ char* zxdb_download_(const char *url, int *len) {
             // ok, redirection
             // mirror = "https://worldofspectrum.net/"; // may be outdated
             // mirror = "https://worldofspectrum.org/"; // 200.00 MB Downloads Available
-            mirror = "https://archive.org/download/World_of_Spectrum_June_2017_Mirror/World%20of%20Spectrum%20June%202017%20Mirror.zip/World%20of%20Spectrum%20June%202017%20Mirror/";
+            // mirror = "https://archive.org/download/World_of_Spectrum_June_2017_Mirror/World%20of%20Spectrum%20June%202017%20Mirror.zip/World%20of%20Spectrum%20June%202017%20Mirror/"; // ok. slow
+            mirror = "http://spectrumcomputing.co.uk/pub/"; // ok, no https
             url += 5;
         }
         else if( !strncmp(url, "/zxdb/", 6) ) {
             //mirror = "https://spectrumcomputing.co.uk/"; // ok
-            mirror = "https://zxinfo.dk/media/"; // ok
+            //mirror = "https://zxinfo.dk/media/"; // ok
+            //mirror = "http://zxinfo.dk/media/"; // no https, untested
+            mirror = "http://spectrumcomputing.co.uk/"; // no https
             url += 1;
         }
         else {
@@ -630,8 +633,8 @@ char* zxdb_download(const zxdb z, const char *url, int *len) {
 
     // convert /url/basename to /path/file.zip/basename
     char path[128];
-    do_once mkdir(".Spectral", 0777);
-    snprintf(path, 128, ".Spectral/%c", index); mkdir(path, 0777);
+    do_once sys_mkdir(".Spectral", 0777);
+    snprintf(path, 128, ".Spectral/%c", index); sys_mkdir(path, 0777);
     snprintf(path, 128, ".Spectral/%c/%s[%s].zip/%s", index, roman, id, basename(url));
 
     char *cache = unzip(path, len);

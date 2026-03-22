@@ -26,8 +26,9 @@ typedef unsigned int   rgba;
 #endif
 
 #ifdef _WIN32
-#define mkdir(p,m)    mkdir(p)
+#define sys_mkdir(p,m)    mkdir(p)
 #else
+#define sys_mkdir(p,m)    mkdir(p,m)
 #include <limits.h>
 #define MAX_PATH PATH_MAX // (defined in limits.h)
 

@@ -55,12 +55,12 @@
 #include "3rd_thread.h"
 #include "3rd_bin.h"
 
-#if 1 // ndef __linux__
+#ifndef _WIN32 // ndef __linux__
 #define TFD_IMPLEMENTATION
 //#define GetForegroundWindow GetActiveWindow
-#define GetForegroundWindow() ((HWND)app->handle)
+//#define GetForegroundWindow() ((HWND)app->handle)
 #include "3rd_tfd.h"
-#undef  GetForegroundWindow
+//#undef  GetForegroundWindow
 #else
 #include "3rd_osdialog.h"
 #include "3rd_osdialog.c"

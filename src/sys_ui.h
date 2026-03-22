@@ -1465,14 +1465,37 @@ rgba* ui_resize(rgba *bitmap, int ix, int iy, unsigned W, unsigned H, int recolo
             while(pixels--) {
                 TPixel *color = (TPixel*)p;
 
-                int bright = !!((color->r&0x80) | (color->g&0x80) | (color->b&0x80));
-                color->r = !!(color->r >> 6);
-                color->g = !!(color->g >> 6);
-                color->b = !!(color->b >> 6);
-                int index = (color->g << 2) | (color->r << 1) | (color->b);
+                int src_r = color->r;
+                int src_g = color->g;
+                int src_b = color->b;
 
+                int best_index = 0;
+                int best_dist = INT_MAX;   // 2147483647 is fine
+
+                extern int ZX_PALETTE;
                 extern rgba ZXPalettes[][64];
-                *p++ = ZXPalettes[0][index + 8 * bright];
+
+                for (int i = 0; i < 16; ++i) {
+                    const TPixel *pal = (TPixel*)&ZXPalettes[ZX_PALETTE][i];
+
+                    int dr = src_r - pal->r;
+                    int dg = src_g - pal->g;
+                    int db = src_b - pal->b;
+
+                    // Squared Euclidean distance - fast and accurate enough
+                    int dist_ = dr*dr + dg*dg + db*db;
+                    // Perceptual weighted distance (recommended)
+                    int dist = (dr * dr) * 299 +
+                               (dg * dg) * 587 +
+                               (db * db) * 114;   // weights sum ≈ 1000
+
+                    if (dist < best_dist) {
+                        best_dist = dist;
+                        best_index = i;
+                    }
+                }
+
+                *p++ = ZXPalettes[ZX_PALETTE][best_index];
             }
         }
         rgba *scaled = (rgba*)

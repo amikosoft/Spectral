@@ -25,39 +25,41 @@ rgba* thumbnail_inplace(const byte *VRAM_, int len, unsigned downfactor, int ZXF
 
         for(int x = 0; x < 32; ++x ) {
             byte attr = *attribs;
-            byte pixel = *pixels, fg, bg;
+            byte pixel = *pixels;
 
             // @fixme: make section branchless
 
             pixel ^= (attr & 0x80) && ZXFlashFlag ? 0xff : 0x00;
-            fg = (attr & 0x07) | ((attr & 0x40) >> 3);
-            bg = (attr & 0x78) >> 3;
+
+            byte bright = (attr & 0x40) >> 3; // 0 or 8
+            byte fg = (attr & 0x07) | bright;
+            byte bg = ((attr >> 3) & 0x07) | bright;
 
             if( downfactor == 1 ) {
-            texture[0]=ZXPalette[pixel & 0x80 ? fg : bg];
-            texture[1]=ZXPalette[pixel & 0x40 ? fg : bg];
-            texture[2]=ZXPalette[pixel & 0x20 ? fg : bg];
-            texture[3]=ZXPalette[pixel & 0x10 ? fg : bg];
-            texture[4]=ZXPalette[pixel & 0x08 ? fg : bg];
-            texture[5]=ZXPalette[pixel & 0x04 ? fg : bg];
-            texture[6]=ZXPalette[pixel & 0x02 ? fg : bg];
-            texture[7]=ZXPalette[pixel & 0x01 ? fg : bg];
+            texture[0]=palette[pixel & 0x80 ? fg : bg];
+            texture[1]=palette[pixel & 0x40 ? fg : bg];
+            texture[2]=palette[pixel & 0x20 ? fg : bg];
+            texture[3]=palette[pixel & 0x10 ? fg : bg];
+            texture[4]=palette[pixel & 0x08 ? fg : bg];
+            texture[5]=palette[pixel & 0x04 ? fg : bg];
+            texture[6]=palette[pixel & 0x02 ? fg : bg];
+            texture[7]=palette[pixel & 0x01 ? fg : bg];
             texture += 8;
             }
             else if( downfactor == 2 ) {
-            texture[0]=ZXPalette[pixel & 0x80 ? fg : bg];
-            texture[1]=ZXPalette[pixel & 0x20 ? fg : bg];
-            texture[2]=ZXPalette[pixel & 0x08 ? fg : bg];
-            texture[3]=ZXPalette[pixel & 0x02 ? fg : bg];
+            texture[0]=palette[pixel & 0x80 ? fg : bg];
+            texture[1]=palette[pixel & 0x20 ? fg : bg];
+            texture[2]=palette[pixel & 0x08 ? fg : bg];
+            texture[3]=palette[pixel & 0x02 ? fg : bg];
             texture += 4;
             }
             else if( downfactor == 4 ) {
-            texture[0]=ZXPalette[pixel & 0x80 ? fg : bg];
-            texture[1]=ZXPalette[pixel & 0x08 ? fg : bg];
+            texture[0]=palette[pixel & 0x80 ? fg : bg];
+            texture[1]=palette[pixel & 0x08 ? fg : bg];
             texture += 2;
             }
             else if( downfactor == 8 ) {
-            texture[0]=ZXPalette[pixel & 0x80 ? fg : bg];
+            texture[0]=palette[pixel & 0x80 ? fg : bg];
             texture += 1;
             }
 
@@ -75,7 +77,7 @@ rgba* thumbnail(const byte *VRAM_, int len, unsigned downfactor, int ZXFlashFlag
     int w = 256 / downfactor, h = 192 / downfactor;
 
     const
-    rgba *palette = ZXPalettes[0]; // [5] B/W palette for a good noir effect!
+    rgba *palette = ZXPalettes[ZX_PALETTE]; // use B/W palette for a good noir effect!
     rgba *texture = malloc( w * h * 4 );
 
     return thumbnail_inplace(VRAM_, len, downfactor, ZXFlashFlag, texture, palette);
@@ -1034,9 +1036,11 @@ char* game_browser_v2() {
             // bookmarks
             list_num = 0;
             list = realloc(list, 65535 * sizeof(VAL*));
+            memset(list, 0, 65535 * sizeof(VAL*));
             for( int i = 0; i < 65535; ++i) {
                 if( cache_get(i) & 0x0f ) {
-                    list[ list_num++ ] = map_find(&zxdb2, va("#%d", i));
+                    VAL *ptr = map_find(&zxdb2, va("#%d", i));
+                    if( ptr ) list[ list_num++ ] = ptr;
                 }
             }
             // list = realloc(list, list_num * sizeof(VAL*));

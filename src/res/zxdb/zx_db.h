@@ -248,7 +248,7 @@ zxdb zxdb_search_by_expr(const char *expr) {
     "(select tags from _tags where entry_id=E.id) as tags " \
     "FROM entries E WHERE " \
     "(machinetype_id <= 10 OR machinetype_id = 14) AND " /*16,16/48,48,48/128,128,+2,+3,+2a/+3,+2b or pentagon*/ \
-    "(genretype_id <= 32 OR (genretype_id >= 72 AND genretype_id <= 78)) AND " /*games or demos*/ \
+    "(genretype_id <= 33 OR (genretype_id >= 72 AND genretype_id <= 78)) AND " /*games or demos*/ \
     "%s ORDER BY score DESC LIMIT %d;", \
         expr, 1
 

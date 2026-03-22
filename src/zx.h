@@ -168,13 +168,19 @@ int ZX_JOYSTICKS[5] = {1|2|16,4,8}; // 0: no, |1: cursor/protek/agf, |2: kempsto
 int ZX_JOYSTICKS_AUTOFIRE[5] = {0}; // 0: no, 1: slow, 2: fast, 3:faster
 int ZX_JOYSTICKS_DEADZONE[5][2] = {{15,15},{15,15},{15,15},{15,15},{15,15}}; // [-100..100]% @ X,Y. default 15% positive
 
+// Gamepads:
+// Buttons A, X and Y are mapped to the joystick's fire button
+// Button B is mapped to the UP directional button. 
+// Buttons L1 and R1 are mapped to RETURN and SPACE, respectively.
+// @todo: START to bring up on-screen keyboard
+// @todo: SELECT button to bring up menus
 const char *ZX_PAD_STR[] = {"⭠","⭢","⭡","⭣","\4A\7","\2B\7","\5X\7","\6Y\7","LB","RB","LT","RT","LS","RS","Bk","St"};
 int ZX_GAMEPAD[5+1+1][16] = {
     {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB},  // redefineable cursor   keys
-    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB,TK_RETURN},  // redefineable gamepad1 keys
-    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB,TK_RETURN},  // redefineable gamepad2 keys
-    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB,TK_RETURN},  // redefineable gamepad3 keys
-    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB,TK_RETURN},  // redefineable gamepad4 keys
+    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB,TK_UP,TK_TAB,TK_TAB,TK_SPACE,TK_RETURN,0,0,0,0,0,TK_ESCAPE},  // redefineable gamepad1 keys
+    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB,TK_UP,TK_TAB,TK_TAB,TK_SPACE,TK_RETURN,0,0,0,0,0,TK_ESCAPE},  // redefineable gamepad2 keys
+    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB,TK_UP,TK_TAB,TK_TAB,TK_SPACE,TK_RETURN,0,0,0,0,0,TK_ESCAPE},  // redefineable gamepad3 keys
+    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB,TK_UP,TK_TAB,TK_TAB,TK_SPACE,TK_RETURN,0,0,0,0,0,TK_ESCAPE},  // redefineable gamepad4 keys
     {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB},  // preset
     {0},                                      // copied/backup values while remapping
 };
@@ -2083,7 +2089,7 @@ void reset(unsigned FLAGS) {
     audio_reset();
 
     ula_reset();
-    palette_use(ZX_PALETTE);
+    palette_use(ZX_PALETTE, 0);
 
     mouse_clip(0);
     mouse_cursor(1);
@@ -2593,7 +2599,7 @@ int load(const char *filename, int model) { // `model`: explicit model to use, o
     }
     if( strendi(filename, ".pal") ) {
         if( pal_load(filename) ) { // .pal
-            palette_use(ZX_PALETTE = countof(ZXPalettes) - 1);
+            palette_use(ZX_PALETTE = countof(ZXPalettes) - 1, 0);
             return 1;
         }
     }

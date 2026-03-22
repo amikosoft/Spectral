@@ -207,7 +207,7 @@ where /q cl.exe || call "%ProgramFiles(x86)%/microsoft visual studio/2017/commun
 
 setlocal enableDelayedExpansion
 if "%cc%"=="" (
-set "cc=clang-cl -Wno-multichar -Wno-unused-value -Wno-macro-redefined -Wno-implicit-function-declaration -Wno-deprecated-declarations -Wno-empty-body -Wno-pointer-sign -Wno-dangling-else -Wno-string-plus-int"
+set "cc=clang-cl -GS- -Wno-multichar -Wno-unused-value -Wno-macro-redefined -Wno-implicit-function-declaration -Wno-deprecated-declarations -Wno-empty-body -Wno-pointer-sign -Wno-dangling-else -Wno-string-plus-int"
 (where /q clang-cl || set "cc=cl" >nul 2>nul)
 )
 
@@ -251,7 +251,7 @@ ping -n 2 -w 1500 localhost > nul && rem wait 1s between 2 consecutive pings, so
 where /q rcedit-x64 || curl -LO https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe
 where /q rcedit-x64 && ^
 rcedit-x64 "Spectral.exe" --set-file-version "!year!.!month!.!today!.!today!!month!" && ^
-rcedit-x64 "Spectral.exe" --set-product-version "1.15" && ^
+rcedit-x64 "Spectral.exe" --set-product-version "1.16" && ^
 rcedit-x64 "Spectral.exe" --set-icon src\res\img\noto_1f47b.ico || goto error
 
 if "%__DOTNET_PREFERRED_BITNESS%"=="32" (
