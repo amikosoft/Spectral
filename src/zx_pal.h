@@ -10,9 +10,9 @@
 #define hex(rrggbb) rgb((0x##rrggbb)>>24,(0x##rrggbb&0xff00)>>16,(0x##rrggbb&0xff))
 
 // default palettes used elsewhere
-enum { ZX_PALETTE_PLAYER = 17 }; // gradients now; vivid before
-enum { ZX_PALETTE_EXTERNAL = 33 };
-enum { ZX_PALETTE_GRAY = 29 }; // noir
+enum { ZX_PALETTE_PLAYER = 19 }; // gradients now; vivid before
+enum { ZX_PALETTE_GRAY = 31 }; // noir
+enum { ZX_PALETTE_EXTERNAL = 35 };
 
 // first 2-digit number configures ZX_BLOOM
 const char *ZXPaletteNames[] = {
@@ -32,24 +32,26 @@ const char *ZXPaletteNames[] = {
     /*#13*/ "00" "Pico8",
     /*#14*/ "00" "Petit",
     /*#15*/ "00" "Bringer",
-    /*#16*/ "00" "Vexed\n",
-    /*#17*/ "00" "Gradients", // best with ZX_BLOOM=40 ?
-    /*#18*/ "00" "Atkinson", // probably best with ZX_BLOOM=20
-    /*#19*/ "00" "Vivid",
-    /*#20*/ "00" "Konni",
-    /*#21*/ "00" "Sintez2\n",
-    /*#22*/ "40" "CPC",
-    /*#23*/ "00" "EGA",
-    /*#24*/ "00" "MSX2",
-    /*#25*/ "00" "Gameboy",
-    /*#26*/ "90" "PCW", // best with ZX_BLOOM=90
-    /*#27*/ "90" "Amber\n", // best with ZX_BLOOM=90
-    /*#28*/ "00" "Ilford",
-    /*#29*/ "00" "Noir",
-    /*#30*/ "00" "TV",
-    /*#31*/ "00" "Graylit",
-    /*#32*/ "20" "Negative\n", // best with ZX_BLOOM=20
-    /*#33*/ "00" "External", // must be last entry
+    /*#16*/ "00" "Quirkafleeg",
+    /*#17*/ "00" "II",
+    /*#18*/ "00" "Origins\n",
+    /*#19*/ "00" "Gradients", // best with ZX_BLOOM=40 ?
+    /*#20*/ "00" "Atkinson", // probably best with ZX_BLOOM=20
+    /*#21*/ "00" "Vivid",
+    /*#22*/ "00" "Konni",
+    /*#23*/ "00" "Sintez2\n",
+    /*#24*/ "40" "CPC",
+    /*#25*/ "00" "EGA",
+    /*#26*/ "00" "MSX2",
+    /*#27*/ "00" "Gameboy",
+    /*#28*/ "90" "PCW", // best with ZX_BLOOM=90
+    /*#29*/ "90" "Amber\n", // best with ZX_BLOOM=90
+    /*#30*/ "00" "Ilford",
+    /*#31*/ "00" "Noir",
+    /*#32*/ "00" "TV",
+    /*#33*/ "00" "Graylit",
+    /*#34*/ "20" "Negative\n", // best with ZX_BLOOM=20
+    /*#35*/ "00" "External", // must be last entry
 };
 
 rgba ZXPalettes[][64] = {
@@ -267,7 +269,6 @@ rgba ZXPalettes[][64] = {
         rgb(0x00,0x79,0x00),rgb(0x00,0xba,0xfb),rgb(0xfb,0xa2,0x00),rgb(0xfb,0xcb,0xa2),
         rgb(0x00,0x00,0x00),rgb(0x00,0x38,0xf3),rgb(0xfb,0x18,0x00),rgb(0xfb,0x59,0xc3),
         rgb(0x00,0xf3,0x18),rgb(0xba,0xba,0xba),rgb(0xfb,0xe3,0x00),rgb(0xfb,0xfb,0xfb),
-
     },
     {
         // dawnbringer's original
@@ -283,9 +284,82 @@ rgba ZXPalettes[][64] = {
         rgb( 89,199,  0),rgb( 68,216,224),rgb(234,234,  0),rgb(232,252,190),
     },
     {
-        // vexed - adapted from https://lospec.com/palette-list/chroma-noir
-        rgb(  13,  13,  13),rgb(  48,  96, 130),rgb( 156,  58,  43),rgb( 209,  81, 238),rgb(  74, 227, 100),rgb(  99, 155, 255),rgb( 230, 122,  48),rgb( 181, 181, 181),
-        rgb(  13,  13,  13),rgb(  48,  96, 130),rgb( 230,  78,  53),rgb( 248, 115, 228),rgb( 153, 229,  80),rgb(  77, 204, 237),rgb( 247, 199,  86),rgb( 217, 217, 217),
+        // Quirkafleeg - sampled from fat freddy's cat issue 5 comic front page: https://comixjoint.com/fatfreddyscat5-1st.html
+        // which is referenced in the Room 16 of JetSetWilly: "We must perform a Quirkafleeg"
+        // PS: there is an alt color scan in http://www.russandem.co.uk/quirk/image/fcover.jpg
+
+#if 0
+        // blacks
+        rgb(  23,  22,  33), OR rgb(  12,  20,  29),
+
+        // pale blues
+        rgb(  25,  57,  96), OR rgb(  18,  38,  62),
+        rgb(  22,  75, 121)
+
+        // purples
+        rgb(  47,  22, 127), OR rgb(  59,  26, 121),
+        rgb(  97,  26, 130), OR rgb( 140,  22, 121),
+
+        // pinks
+        rgb( 229, 105, 112),
+        rgb( 239,  97, 168),
+        
+        // greens
+        rgb(  58, 155,  24),
+        rgb( 119, 187,   4),
+
+        // cyans
+        rgb(  54, 129, 193),
+        rgb(  57, 162, 226),
+
+        // oranges
+        rgb( 175,  84,  27),
+        rgb( 230, 107,  27),
+
+        // yellows
+        rgb( 240, 188,   4),
+        rgb( 250, 227,   2),
+    
+        // whites
+        rgb( 189, 178, 144),
+        rgb( 249, 244, 225),
+#endif
+        
+        // v0: black, purples, reds, pinks...
+        //rgb(  12,  20,  29),rgb(  47,  22, 127),rgb( 176,  49,  17),rgb( 229, 105, 112),rgb(  58, 155,  24),rgb(  54, 129, 193),rgb( 240, 188,   4),rgb( 189, 178, 144),
+        //rgb(  12,  20,  29),rgb(  97,  26, 130),rgb( 227,  50,  19),rgb( 239,  97, 168),rgb( 119, 187,   4),rgb(  57, 162, 226),rgb( 250, 227,   2),rgb( 249, 244, 225),
+
+        // v1: black, pale blues, reds, purples, greens, cyans, yellows, whites        
+        // rgb(  12,  20,  29),rgb(  25,  57,  96),rgb( 176,  49,  17),rgb(  49,  23, 125),rgb(  58, 155,  24),rgb(  54, 129, 193),rgb( 240, 188,   4),rgb( 189, 178, 144),
+        // rgb(  12,  20,  29),rgb(  22,  75, 121),rgb( 227,  50,  19),rgb(  99,  26, 127),rgb( 119, 187,   4),rgb(  57, 162, 226),rgb( 250, 227,   2),rgb( 249, 244, 225),
+
+        // v2: dark pale blue, purples, reds, oranges, greens, cyans, yellows, whites
+        // rgb(  18,  38,  62),rgb(  59,  26, 121),rgb( 176,  49,  17),rgb( 175,  84,  27),rgb(  58, 155,  24),rgb(  54, 129, 193),rgb( 240, 188,   4),rgb( 189, 178, 144),
+        // rgb(  18,  38,  62),rgb(  97,  26, 130),rgb( 227,  50,  19),rgb( 230, 107,  27),rgb( 119, 187,   4),rgb(  57, 162, 226),rgb( 250, 227,   2),rgb( 249, 244, 225),
+
+        // v3: dark pale blue, purples, reds, orange/pink, greens, cyans, yellows, whites
+//        rgb(  18,  38,  62),rgb(  59,  26, 121),rgb( 176,  49,  17),rgb( 230, 107,  27),rgb(  58, 155,  24),rgb(  54, 129, 193),rgb( 240, 188,   4),rgb( 189, 178, 144),
+//        rgb(  18,  38,  62),rgb(  97,  26, 130),rgb( 227,  50,  19),rgb( 239,  97, 168),rgb( 119, 187,   4),rgb(  57, 162, 226),rgb( 250, 227,   2),rgb( 249, 244, 225),
+
+        // v4: dark pale blue, pale blues, reds, purples, greens, cyans, orange/yellow, whites
+        rgb(   6,  25,  40),rgb(  25,  57,  96),rgb( 176,  49,  17),rgb(  97,  26, 130),rgb(  58, 155,  24),rgb(  54, 129, 193),rgb( 255, 154,  17),rgb( 201, 192, 165),
+        rgb(   6,  25,  40),rgb(  22,  75, 121),rgb( 227,  50,  19),rgb( 140,  22, 121),rgb( 119, 187,   4),rgb(  57, 162, 226),rgb( 240, 188,   4),rgb( 249, 244, 225),
+    },
+    {
+        // quirkafleeg II - sampled from a color transfer between fatfreddyscat5->fcover
+
+        // original, washed
+        // rgb(   0,  19,  30),rgb(   0,  58, 108),rgb( 110,  66,  52),rgb( 168,  81, 101),rgb(   0, 130, 121),rgb(   0, 151, 231),rgb( 221, 167,  73),rgb( 148, 168, 190),
+        // rgb(   0,  19,  30),rgb(   0,  91, 143),rgb( 202,  96,  53),rgb( 225, 117, 144),rgb( 199, 219,  80),rgb(   0, 201, 254),rgb( 255, 212,  34),rgb( 216, 254, 254),
+
+        // saturated
+        rgb(   0,  19,  30),rgb(   0,  58, 108),rgb( 107,  39,  21),rgb( 182,  67,  92),rgb(   0, 130, 121),rgb(   0, 151, 231),rgb( 255, 174,  38),rgb( 182, 196, 211),
+        rgb(   0,  19,  30),rgb(   6,  87, 136),rgb( 176,  48,  17),rgb( 248,  95, 133),rgb( 100, 216,  56),rgb(   0, 201, 254),rgb( 255, 212,  34),rgb( 216, 254, 254),
+    },
+    {
+        // origins
+        rgb(   0,  19,  30),rgb(   0,   0, 155),rgb( 145,   0,  29),rgb( 182,   0,  92),rgb(   0, 130,   0),rgb(   0, 151, 231),rgb( 255, 174,   0),rgb( 182, 196, 211),
+        rgb(   0,  19,  30),rgb(  11,   0, 217),rgb( 204,   0,  20),rgb( 248,   0, 133),rgb( 100, 216,   0),rgb(   0, 201, 254),rgb( 255, 212,   0),rgb( 216, 254, 254),
     },
     {
         // Gradients (from specemu; probably chev's), needs to be used with gloom so it burns the colors and increases luma
@@ -361,43 +435,43 @@ rgba ZXPalettes[][64] = {
     },
     {
         // pcw-ish. take pc emulators > b/w version > green. expanded to 8 lumas for better vis (should be 4!)
-        rgb(0,luma(0x00,0x20,0x00),luma(0x00,0x20,0x00)*44/100), // there is no black in a pcw monitor afaik. use a dark green instead
-        rgb(0,luma(0x00,0x20,0xEA),luma(0x00,0x20,0xEA)*44/100), // boost G+B
-        rgb(0,luma(0xD0,0x00,0x00),luma(0xD0,0x00,0x00)*44/100),
-        rgb(0,luma(0xD0,0x00,0xD0),luma(0xD0,0x00,0xD0)*44/100),
-        rgb(0,luma(0x00,0xD0,0x00),luma(0x00,0xD0,0x00)*44/100),
-        rgb(0,luma(0x00,0xD0,0xD0),luma(0x00,0xD0,0xD0)*44/100),
-        rgb(0,luma(0xD0,0xD0,0x00),luma(0xD0,0xD0,0x00)*44/100),
-        rgb(0,luma(0xD0,0xD0,0xD0),luma(0xD0,0xD0,0xD0)*44/100),
+        rgb(0,0x20,0x20*44/100), // there is no black in a pcw monitor afaik. use a dark green instead
+        rgb(0,0x30,0x30*44/100), // boost G+B
+        rgb(0,0x3E,0x3E*44/100),
+        rgb(0,0x4C,0x4C*44/100),
+        rgb(0,0x5A,0x5A*44/100),
+        rgb(0,0x69,0x69*44/100),
+        rgb(0,0x77,0x77*44/100),
+        rgb(0,0x85,0x85*44/100),
 
-        rgb(0,luma(0x00,0x20,0x00),luma(0x00,0x20,0x00)*44/100), // there is no black in a pcw monitor afaik. use a dark green instead
-        rgb(0,luma(0x00,0x20,0xEA),luma(0x00,0x20,0xEA)*44/100), // boost G+B
-        rgb(0,luma(0xD0,0x00,0x00),luma(0xD0,0x00,0x00)*44/100),
-        rgb(0,luma(0xD0,0x00,0xD0),luma(0xD0,0x00,0xD0)*44/100),
-        rgb(0,luma(0x00,0xD0,0x00),luma(0x00,0xD0,0x00)*44/100),
-        rgb(0,luma(0x00,0xD0,0xD0),luma(0x00,0xD0,0xD0)*44/100),
-        rgb(0,luma(0xD0,0xD0,0x00),luma(0xD0,0xD0,0x00)*44/100),
-        rgb(0,luma(0xD0,0xD0,0xD0),luma(0xD0,0xD0,0xD0)*44/100),
+        rgb(0,0x20,0x20*44/100), // there is no black in a pcw monitor afaik. use a dark green instead
+        rgb(0,0x30,0x30*44/100), // boost G+B
+        rgb(0,0x3E,0x3E*44/100),
+        rgb(0,0x4C,0x4C*44/100),
+        rgb(0,0x5A,0x5A*44/100),
+        rgb(0,0x69,0x69*44/100),
+        rgb(0,0x77,0x77*44/100),
+        rgb(0,0x85,0x85*44/100),
     },
     {
         // amber-ish. take pc emulators > b/w version > orange. expanded to 8 lumas for better vis
-        rgb(luma(0x00,0x20,0x00),luma(0x00,0x20,0x00)*44/100,0), // there is no black in an amber monitor afaik. use a dark orange instead
-        rgb(luma(0x00,0x20,0xEA),luma(0x00,0x20,0xEA)*44/100,0), // boost G+B
-        rgb(luma(0xD0,0x00,0x00),luma(0xD0,0x00,0x00)*44/100,0),
-        rgb(luma(0xD0,0x00,0xD0),luma(0xD0,0x00,0xD0)*44/100,0),
-        rgb(luma(0x00,0xD0,0x00),luma(0x00,0xD0,0x00)*44/100,0),
-        rgb(luma(0x00,0xD0,0xD0),luma(0x00,0xD0,0xD0)*44/100,0),
-        rgb(luma(0xD0,0xD0,0x00),luma(0xD0,0xD0,0x00)*44/100,0),
-        rgb(luma(0xD0,0xD0,0xD0),luma(0xD0,0xD0,0xD0)*44/100,0),
+        rgb(luma(0x00,0x30,0x00),luma(0x00,0x30,0x00)*44/100,0), // there is no black in an amber monitor afaik. use a dark orange instead
+        rgb(luma(0x00,0x30,0x90),luma(0x00,0x30,0x90)*44/100,0), // boost G+B
+        rgb(luma(0xD8,0x00,0x00),luma(0xD8,0x00,0x00)*44/100,0),
+        rgb(luma(0xE0,0x00,0xE0),luma(0xE0,0x00,0xE0)*44/100,0),
+        rgb(luma(0x00,0xE8,0x00),luma(0x00,0xE8,0x00)*44/100,0),
+        rgb(luma(0x00,0xF0,0xF0),luma(0x00,0xF0,0xF0)*44/100,0),
+        rgb(luma(0xF8,0xF8,0x00),luma(0xF8,0xF8,0x00)*44/100,0),
+        rgb(luma(0xFF,0xFF,0xFF),luma(0xFF,0xFF,0xFF)*44/100,0),
 
-        rgb(luma(0x00,0x20,0x00),luma(0x00,0x20,0x00)*44/100,0), // there is no black in an amber monitor afaik. use a dark orange instead
-        rgb(luma(0x00,0x20,0xEA),luma(0x00,0x20,0xEA)*44/100,0), // boost G+B
-        rgb(luma(0xD0,0x00,0x00),luma(0xD0,0x00,0x00)*44/100,0),
-        rgb(luma(0xD0,0x00,0xD0),luma(0xD0,0x00,0xD0)*44/100,0),
-        rgb(luma(0x00,0xD0,0x00),luma(0x00,0xD0,0x00)*44/100,0),
-        rgb(luma(0x00,0xD0,0xD0),luma(0x00,0xD0,0xD0)*44/100,0),
-        rgb(luma(0xD0,0xD0,0x00),luma(0xD0,0xD0,0x00)*44/100,0),
-        rgb(luma(0xD0,0xD0,0xD0),luma(0xD0,0xD0,0xD0)*44/100,0),
+        rgb(luma(0x00,0x30,0x00),luma(0x00,0x30,0x00)*44/100,0), // there is no black in an amber monitor afaik. use a dark orange instead
+        rgb(luma(0x00,0x30,0x90),luma(0x00,0x30,0x90)*44/100,0), // boost G+B
+        rgb(luma(0xD8,0x00,0x00),luma(0xD8,0x00,0x00)*44/100,0),
+        rgb(luma(0xE0,0x00,0xE0),luma(0xE0,0x00,0xE0)*44/100,0),
+        rgb(luma(0x00,0xE8,0x00),luma(0x00,0xE8,0x00)*44/100,0),
+        rgb(luma(0x00,0xF0,0xF0),luma(0x00,0xF0,0xF0)*44/100,0),
+        rgb(luma(0xF8,0xF8,0x00),luma(0xF8,0xF8,0x00)*44/100,0),
+        rgb(luma(0xFF,0xFF,0xFF),luma(0xFF,0xFF,0xFF)*44/100,0),
     },
     {
         // Ilford FP4 Push filter
