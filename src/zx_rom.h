@@ -431,10 +431,42 @@ int translate(char *ptr, int size, int locale) {
 
     // if( locale != 'en' ) return;
 
+    // es2en
+    const char* tx[][2] = { // important: list must be sorted
+        {"ABAJO","DOWN"},
+        {"ABORTA","ABORT"},
+        {"ABORTAR","ABORT"},
+        {"ARRIBA","UP"},
+        {"BOMBA","BOMB"},
+        {"COGER","PICK"},
+        {"COMENZAR","START"},
+        {"CONTROLES","CONTROLS"},
+        {"CURSORES","CURSOR"},
+        {"DEFINIR","DEFINE"},
+        {"DERECHA","RIGHT"},
+        {"DISPARO","FIRE"},
+        {"EMPEZAR","START"},
+        {"FUEGO","FIRE"},
+        {"INSTRUCCIONES","INSTRUCTIONS"},
+        {"IZQUIERDA", "LEFT"},
+        {"JUEGO","GAME"},
+        {"JUGAR","PLAY"},
+        {"PAUSA","PAUSE"},
+        {"PULSA UNA TECLA", "PRESS ANY KEY"},
+        {"REDEFINIR", "DEFINE"},
+        {"REINICIA","RESET"},
+        {"REINICIAR", "RESET"},
+        {"SALTAR","JUMP"},
+        {"SALTO","JUMP"},
+        {"TECLADO","KEYPAD"}, // cant use 'keyboard', as it is longer than 'teclado'
+        {"TECLAS","KEYS"},
+        //{"USAR", "USE"},
+        {"VIDAS","LIFES"},
+    };
     int patches = 0;
-    for( int i = (sizeof(any2en) / sizeof(any2en[0])); --i >= 0; ) { // important: patch in reverse order
-        char *t1 = va("%s", any2en[i][0]);
-        char *t2 = va("%s%*.s", any2en[i][1], strlen(any2en[i][0]) - strlen(any2en[i][1]), "");
+    for( int i = (sizeof(tx) / sizeof(tx[0])); --i >= 0; ) { // important: patch in reverse order
+        char *t1 = va("%s", tx[i][0]);
+        char *t2 = va("%s%*.s", tx[i][1], strlen(tx[i][0]) - strlen(tx[i][1]), "");
         if( strlen(t1) == strlen(t2) ) {
             // patch regular text
             patches += patch( ptr, ptr + size, t1, t2, strlen(t2) );

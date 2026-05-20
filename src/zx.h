@@ -92,7 +92,7 @@ int do_audio = 1;
 
 int ZX_PLAYER = 0; // 0:app is full featured emulator, 1:app is a small zx player with reduced functionality
 
-int ZX_BROWSER = 1; // game browser version to use, currently only v0 and v1 are supported
+int ZX_BROWSER = 2; // game browser version to use, currently only v1 and v2 are supported
 int ZX_DEVTOOLS = 0; // 0: regular, 1: development tools (@todo: profiler,analyzer)
 int ZX_DEBUG = 0; // status bar, z80 disasm
 int ZX_INPUT = 1;
@@ -124,11 +124,8 @@ int ZX_PAUSE = 1; // 0: always on, 1: pause if app is minimized/blurred
 int ZX_TURBOROM = 0; // 0: no, 1: patch rom so loading standard tape blocks is faster (see: .tap files)
 int ZX_MOUSE = 1; // 0: no, 1:kempston mouse, 2:gunstick/lightgun
 int ZX_MOUSE_AUTOFIRE = 0; // 0: no, 1: slow, 2: fast, 3:faster
-int ZX_RESUME = 1; // yes/no: whether to resume last game or start fresh on launch
-int ZX_AUTOLOAD = 1; // yes/no: reset ZX and load games automatically
 int ZX_AUTOPLAY = 0; // yes/no: auto-plays tapes based on #FE port reads
 int ZX_AUTOSTOP = 0; // yes/no: auto-stops tapes based on #FE port reads
-int ZX_TAPECOUNTER = 1; // yes/no: display a NNN counter while tape loading
 int ZX_RUNAHEAD = 0; // 0: no, 1: 1-frame run-ahead, 2: 2-frame run-ahead (improved input latency)
 int ZX_ULAPLUS = 2; // 0:classic, 1: ulaplus 64color mode, 2: ulaplus/ultrawide
 int ZX_FPSMUL = 100; // fps multiplier: 0 (max), x100 (50 pal), x120 (60 ntsc), x200 (7mhz), x400 (14mhz)
@@ -159,22 +156,21 @@ const char *ZX_FN_STR[] = {"ESC","F1","F2","F3","F4","F5","F6","F7","F8","F9","F
 int ZX_FN[12+1] = {'GAME'}; // redefineable function keys. FN[0] = ESC, FN[1..12] = F1..F12
 
 // note that [0]=cursor keys,[1]=gamepad1,[2]=gamepad2...
-int ZX_JOYSTICKS[5] = {1|2|16,4,8}; // 0: no, |1: cursor/protek/agf, |2: kempston, |4: sinclair1, |8: sinclair2, |16: fuller, |32:kempston2, >=256:... custom mappings
-int ZX_JOYSTICKS_AUTOFIRE[5] = {0}; // 0: no, 1: slow, 2: fast, 3:faster
-int ZX_JOYSTICKS_DEADZONE[5][2] = {{15,15},{15,15},{15,15},{15,15},{15,15}}; // [-100..100]% @ X,Y. default 15% positive
+int ZX_JOYSTICKS[5] = {1|2|16,0,0,0,0}; // 0: no, |1: cursor/protek/agf, |2: kempston, |4: sinclair1, |8: sinclair2, |16: fuller, |32:kempston2, >=256:... custom mappings
+int ZX_JOYSTICKS_AUTOFIRE[5] = {0,0,0,0,0}; // 0: no, 1: slow, 2: fast, 3:faster
 
 const char *ZX_PAD_STR[] = {"⭠","⭢","⭡","⭣","\4A\7","\2B\7","\5X\7","\6Y\7","LB","RB","LT","RT","LS","RS","Bk","St"};
 int ZX_GAMEPAD[5+1+1][16] = {
     {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB},  // redefineable cursor   keys
-    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB,TK_RETURN},  // redefineable gamepad1 keys
-    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB,TK_RETURN},  // redefineable gamepad2 keys
-    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB,TK_RETURN},  // redefineable gamepad3 keys
-    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB,TK_RETURN},  // redefineable gamepad4 keys
+    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB},  // redefineable gamepad1 keys
+    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB},  // redefineable gamepad2 keys
+    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB},  // redefineable gamepad3 keys
+    {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB},  // redefineable gamepad4 keys
     {TK_LEFT,TK_RIGHT,TK_UP,TK_DOWN,TK_TAB},  // preset
-    {0},                                      // copied/backup values while remapping
+    {0},                                      // temporary values while remapping
 };
 #define ZX_GAMEPAD_PRESET_ ZX_GAMEPAD[5]
-#define ZX_GAMEPAD_COPY_   ZX_GAMEPAD[6]
+#define ZX_GAMEPAD_TEMP_   ZX_GAMEPAD[6]
 int ZX_PLAYERNUM = 0; // temp
 #define ZX_PAD (ZX_GAMEPAD[ZX_PLAYERNUM])
 
@@ -182,8 +178,7 @@ int   ZX_TABS = 2; // [2]=>'A' current game letter being browsed. may be a lette
 char *ZX_TITLE = 0; // current titlebar
 char *ZX_MEDIA = 0; // current mounted game
 
-//const
-char *ZX_FOLDER = "./"; // 0;
+char *ZX_FOLDER = 0;
 
 int   ZX_SHADED = 0; // is ZX_SHADER enabled or not
 char *ZX_SHADER = 0; // path to the custom shader file
@@ -204,25 +199,24 @@ char *ZX_SHADER = 0; // path to the custom shader file
     X(ZX_FPSMUL) \
     X(ZX_AUTOLOCALE) \
     X(ZX_FASTTAPE) \
-    X(ZX_BROWSER) \
+    /*X(ZX_BROWSER)*/ \
     X(ZX_ALTROMS) \
     X(ZX_PALETTE) X(ZX_PALETTE_PREVIEW) \
     X(ZX_MULTIFACE) \
     X(ZX_FN[0]) X(ZX_FN[1]) X(ZX_FN[2]) X(ZX_FN[3]) X(ZX_FN[4]) X(ZX_FN[5]) \
     X(ZX_FN[6]) X(ZX_FN[7]) X(ZX_FN[8]) X(ZX_FN[9]) X(ZX_FN[10]) X(ZX_FN[11]) X(ZX_FN[12]) \
-    X(ZX_JOYSTICKS[0]) X(ZX_JOYSTICKS_AUTOFIRE[0]) X(ZX_JOYSTICKS_DEADZONE[0][0]) X(ZX_JOYSTICKS_DEADZONE[0][1]) \
-    X(ZX_JOYSTICKS[1]) X(ZX_JOYSTICKS_AUTOFIRE[1]) X(ZX_JOYSTICKS_DEADZONE[1][0]) X(ZX_JOYSTICKS_DEADZONE[1][1]) \
-    X(ZX_JOYSTICKS[2]) X(ZX_JOYSTICKS_AUTOFIRE[2]) X(ZX_JOYSTICKS_DEADZONE[2][0]) X(ZX_JOYSTICKS_DEADZONE[2][1]) \
-    X(ZX_JOYSTICKS[3]) X(ZX_JOYSTICKS_AUTOFIRE[3]) X(ZX_JOYSTICKS_DEADZONE[3][0]) X(ZX_JOYSTICKS_DEADZONE[3][1]) \
-    X(ZX_JOYSTICKS[4]) X(ZX_JOYSTICKS_AUTOFIRE[4]) X(ZX_JOYSTICKS_DEADZONE[4][0]) X(ZX_JOYSTICKS_DEADZONE[4][1]) \
+    X(ZX_JOYSTICKS[0]) X(ZX_JOYSTICKS_AUTOFIRE[0]) \
+    X(ZX_JOYSTICKS[1]) X(ZX_JOYSTICKS_AUTOFIRE[1]) \
+    X(ZX_JOYSTICKS[2]) X(ZX_JOYSTICKS_AUTOFIRE[2]) \
+    X(ZX_JOYSTICKS[3]) X(ZX_JOYSTICKS_AUTOFIRE[3]) \
+    X(ZX_JOYSTICKS[4]) X(ZX_JOYSTICKS_AUTOFIRE[4]) \
     X(ZX_GAMEPAD[0][0]) X(ZX_GAMEPAD[0][1]) X(ZX_GAMEPAD[0][2]) X(ZX_GAMEPAD[0][3]) X(ZX_GAMEPAD[0][4]) X(ZX_GAMEPAD[0][5]) X(ZX_GAMEPAD[0][6]) X(ZX_GAMEPAD[0][7]) X(ZX_GAMEPAD[0][8]) X(ZX_GAMEPAD[0][9]) X(ZX_GAMEPAD[0][10]) X(ZX_GAMEPAD[0][11]) X(ZX_GAMEPAD[0][12]) X(ZX_GAMEPAD[0][13]) X(ZX_GAMEPAD[0][14]) X(ZX_GAMEPAD[0][15]) \
     X(ZX_GAMEPAD[1][0]) X(ZX_GAMEPAD[1][1]) X(ZX_GAMEPAD[1][2]) X(ZX_GAMEPAD[1][3]) X(ZX_GAMEPAD[1][4]) X(ZX_GAMEPAD[1][5]) X(ZX_GAMEPAD[1][6]) X(ZX_GAMEPAD[1][7]) X(ZX_GAMEPAD[1][8]) X(ZX_GAMEPAD[1][9]) X(ZX_GAMEPAD[1][10]) X(ZX_GAMEPAD[1][11]) X(ZX_GAMEPAD[1][12]) X(ZX_GAMEPAD[1][13]) X(ZX_GAMEPAD[1][14]) X(ZX_GAMEPAD[1][15]) \
     X(ZX_GAMEPAD[2][0]) X(ZX_GAMEPAD[2][1]) X(ZX_GAMEPAD[2][2]) X(ZX_GAMEPAD[2][3]) X(ZX_GAMEPAD[2][4]) X(ZX_GAMEPAD[2][5]) X(ZX_GAMEPAD[2][6]) X(ZX_GAMEPAD[2][7]) X(ZX_GAMEPAD[2][8]) X(ZX_GAMEPAD[2][9]) X(ZX_GAMEPAD[2][10]) X(ZX_GAMEPAD[2][11]) X(ZX_GAMEPAD[2][12]) X(ZX_GAMEPAD[2][13]) X(ZX_GAMEPAD[2][14]) X(ZX_GAMEPAD[2][15]) \
     X(ZX_GAMEPAD[3][0]) X(ZX_GAMEPAD[3][1]) X(ZX_GAMEPAD[3][2]) X(ZX_GAMEPAD[3][3]) X(ZX_GAMEPAD[3][4]) X(ZX_GAMEPAD[3][5]) X(ZX_GAMEPAD[3][6]) X(ZX_GAMEPAD[3][7]) X(ZX_GAMEPAD[3][8]) X(ZX_GAMEPAD[3][9]) X(ZX_GAMEPAD[3][10]) X(ZX_GAMEPAD[3][11]) X(ZX_GAMEPAD[3][12]) X(ZX_GAMEPAD[3][13]) X(ZX_GAMEPAD[3][14]) X(ZX_GAMEPAD[3][15]) \
     X(ZX_GAMEPAD[4][0]) X(ZX_GAMEPAD[4][1]) X(ZX_GAMEPAD[4][2]) X(ZX_GAMEPAD[4][3]) X(ZX_GAMEPAD[4][4]) X(ZX_GAMEPAD[4][5]) X(ZX_GAMEPAD[4][6]) X(ZX_GAMEPAD[4][7]) X(ZX_GAMEPAD[4][8]) X(ZX_GAMEPAD[4][9]) X(ZX_GAMEPAD[4][10]) X(ZX_GAMEPAD[4][11]) X(ZX_GAMEPAD[4][12]) X(ZX_GAMEPAD[4][13]) X(ZX_GAMEPAD[4][14]) X(ZX_GAMEPAD[4][15]) \
     X(ZX_ZOOM) X(ZX_FULLSCREEN) X(ZX_WAVES) X(ZX_LENSLOK) X(ZX_SHADED) X(ZX_LOBBY) X(ZX_HORACE) \
-    X(ZX_BLUR) X(ZX_BLOOM) X(ZX_TABS) X(ZX_STEREO) X(ZX_FLASHLOAD) X(ZX_PAUSE) X(ZX_CONSOLE) X(ZX_TURBOSOUND) \
-    X(ZX_RESUME) X(ZX_AUTOLOAD) X(ZX_TAPECOUNTER)
+    X(ZX_BLUR) X(ZX_BLOOM) X(ZX_TABS) X(ZX_STEREO) X(ZX_FLASHLOAD) X(ZX_PAUSE) X(ZX_CONSOLE) X(ZX_TURBOSOUND)
 
 void logport(word port, byte value, int is_out);
 void outport(word port, byte value);
@@ -237,7 +231,7 @@ void port_0xfffd(byte value);
 enum { KEEP_MEDIA = 1, QUICK_RESET = 2 };
 void boot(int model, unsigned flags);
 void reset(unsigned flags);
-void eject(int forget_media);
+void eject();
 
 //void run(unsigned TS, int is_paper);
 
@@ -2031,12 +2025,11 @@ int reload(int model, int forced) {
     return 0;
 }
 
-void eject(int forget_media) {
+void eject() {
     Reset1793(&wd,fdd,WD1793_EJECT);
     fdc_reset();
     tape_reset();
     media_seek[0] = 0; //media_reset();
-    if( forget_media ) if( ZX_MEDIA ) free(ZX_MEDIA), ZX_MEDIA = 0;
     RZX_reset();
     ZXDB = zxdb_free(ZXDB);
 }
@@ -2093,7 +2086,7 @@ void reset(unsigned FLAGS) {
     if( FLAGS & KEEP_MEDIA ) {
         Reset1793(&wd,fdd,WD1793_KEEP);
     } else {
-        eject(0);
+        eject();
     }
 
 }
@@ -2218,9 +2211,6 @@ int is_basic_mode() {
 
 // 0: cannot load, 1: snapshot loaded, 2: tape loaded, 3: disk loaded, 4: ay loaded
 int loadbin_(const byte *ptr, int size, int preloader) {
-
-    if(!ZX_AUTOLOAD) preloader = 0;
-
     ZX_AUTOPLAY = 1;
     ZX_AUTOSTOP = 0;
 
@@ -2405,7 +2395,7 @@ int guess_v2(const char *filename) {
     guessbin_ = NULL;
     guesslen_ = 0;
 
-    eject(0);
+    eject();
 
     // algorithm:
     // 1st) read zxdb info (Elite: 48k+128k, so choose 128k because it is the better choice), unless
@@ -2592,7 +2582,7 @@ int load(const char *filename, int model) { // `model`: explicit model to use, o
     int hint = guess_v2(filename);
     if( model == 0 ) model = hint;
     if( model == 0 ) model = ZX|ZX_PENTAGON;
-    if( model > 0 && load_should_clear && ZX_AUTOLOAD ) {
+    if( model > 0 && load_should_clear ) {
         /**/ if( model == 129 ) boot(ZX = 129, ~0u);
         else if( model == 300 ) boot(ZX = 300, ~0u);
         else if( model == 210 ) boot(ZX = 210, ~0u);
@@ -2634,9 +2624,9 @@ int are_sequential_urls(const char *url1, const char *url2) {
     if( len1 == len2 ) {
         int diff = 0;
         for( int i = 0; i < len1; ++i ) {
-            diff += base2[i] - base1[i];
+            diff += base1[i] - base2[i];
         }
-        return (diff * diff) == 1;
+        return diff == 1;
     }
     return 0;
 }

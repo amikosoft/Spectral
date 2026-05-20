@@ -14,6 +14,8 @@ if [ "$(uname)" != "Darwin" ]; then
 
 # setup (ArchLinux) ----------------------------------------------------------
 [ ! -f ".setup" ] && [ -x "$(command -v pacman)"  ] && sudo pacman -Sy && sudo pacman -Sy --noconfirm gcc ninja && echo>.setup
+# setup (Fedora)
+[ ! -f ".setup" ] && [ -x "$(command -v dnf)" ] && sudo dnf install -y gcc upx ninja-build libX11-devel mesa-libGL-devel alsa-lib-devel systemd-devel && echo>.setup
 # setup (Debian, Ubuntu, etc)
 [ ! -f ".setup" ] && [ -x "$(command -v apt-get)" ] && sudo apt-get -y update && sudo apt-get -y install gcc upx ninja-build libx11-dev gcc libgl1-mesa-dev libasound2-dev mesa-common-dev libudev-dev && echo>.setup
 
@@ -37,7 +39,7 @@ upx -9 Spectral.linux
 #cat Spectral.linux src/res/embed src/res/zxdb/Spectral.db.gz src/res/embed > Spectral.linux
 dd if=src/res/embed >> Spectral.linux
 dd if=src/res/zxdb/Spectral.db.gz >> Spectral.linux
-#dd if=src/res/embed >> Spectral.linux
+dd if=src/res/embed >> Spectral.linux
 
 fi
 
@@ -54,7 +56,7 @@ gcc -ObjC src/app.c -I src -o ./Spectral.osx -O3 -DNDEBUG=3 -Wno-unused-result -
 #cat Spectral.osx src/res/embed src/res/zxdb/Spectral.db.gz src/res/embed > Spectral.osx
 dd if=src/res/embed >> Spectral.osx
 dd if=src/res/zxdb/Spectral.db.gz >> Spectral.osx
-#dd if=src/res/embed >> Spectral.osx
+dd if=src/res/embed >> Spectral.osx
 
 # embed icon and make .app
 test -d Spectral.app && rm -rf Spectral.app
@@ -251,7 +253,7 @@ ping -n 2 -w 1500 localhost > nul && rem wait 1s between 2 consecutive pings, so
 where /q rcedit-x64 || curl -LO https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe
 where /q rcedit-x64 && ^
 rcedit-x64 "Spectral.exe" --set-file-version "!year!.!month!.!today!.!today!!month!" && ^
-rcedit-x64 "Spectral.exe" --set-product-version "1.15-WIP" && ^
+rcedit-x64 "Spectral.exe" --set-product-version "1.14-WIP" && ^
 rcedit-x64 "Spectral.exe" --set-icon src\res\img\noto_1f47b.ico || goto error
 
 if "%__DOTNET_PREFERRED_BITNESS%"=="32" (

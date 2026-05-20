@@ -1278,7 +1278,7 @@ void ui_notify(const char *utf8) {
 }
 
 static
-void ui_notify_draw() {
+void ui_notify_draw(int zx_player) {
     const int __320 = ui_layer->w, __319 = __320-1, __321 = __320+1;
     const int __240 = ui_layer->h, __239 = __240-1;
 
@@ -1305,6 +1305,10 @@ void ui_notify_draw() {
     double timer = (now - ui_notify_timer) / 1e9;
 
     int enabled = timer < 0.200;
+
+    if (zx_player) {
+        enabled = timer < 2.0;
+    }
 
     // ui animation
     smooth = smooth * 0.75 + enabled * 0.25;
@@ -1351,8 +1355,8 @@ void ui_notify_draw() {
 #endif
 }
 
-void ui_frame_end() {
-    ui_notify_draw();
+void ui_frame_end(int zx_player) {
+    ui_notify_draw(zx_player);
 }
 
 #endif
@@ -1726,9 +1730,6 @@ int ui_dialog_render(Tigr *dialog, float wheel) {
         tigrFillRect(dialog, -1, y1, __321+1, y2-y1+1, transp);
         tigrLine(dialog, -1,y1, __321+1,y1, ((TPixel){255,255,255,255}));
         tigrLine(dialog, -1,y2, __321+1,y2, ((TPixel){255,255,255,255}));
-
-        // mouse data
-        struct mouse M = mouse();
         
         // calc longest line
         int maxw = 0;
@@ -1805,11 +1806,11 @@ int ui_dialog_render(Tigr *dialog, float wheel) {
                 int w = maxw+3/*201-8*/, X0 = x0 - 1, x1 = X0 + w, at = X0 + w * dt, Y0 = y0 + options[i].h - 1;
 
                 int hovered = 
-                    ( M.x >= (X0-15) && M.x < (X0+w+15) ) &&
-                    ( M.y >= (Y0-15) && M.y < (Y0+15/2) );
+                    ( mouse().x >= (X0-15) && mouse().x < (X0+w+15) ) &&
+                    ( mouse().y >= (Y0-15) && mouse().y < (Y0+15/2) );
 
                 int snapped;
-                        float dt_ = (tigrClamp(M.x, X0, X0 + w) - X0) / w;
+                        float dt_ = (tigrClamp(mouse().x, X0, X0 + w) - X0) / w;
                         if( options[i].flags & OPTION_COMBO ) {
                             float snapped_ = (dt_ * (range+1)) + options[i].slidermin;
                             snapped = tigrClamp(snapped_, options[i].slidermin, options[i].slidermax);
@@ -1856,14 +1857,13 @@ int ui_dialog_render(Tigr *dialog, float wheel) {
 
                     // segment length and pixel alignments
                     int segments = range;
-                    int olen = (int)((float)w/range); 
-                    int len = olen + (olen&1);
+                    int len = (int)((float)w/range); len += len&1;
 
                     for( int s = 0; s < segments; ++s ) {
                         int pressed = (ui_press && hovered);
                         int selected = s == (*options[i].value - options[i].slidermin);
                         int over = hovered && 
-                            ( M.x > (X0+(p-q)+1) && M.x < (X0+(p-q)+len) );
+                            ( mouse().x > (X0+(p-q)+1) && mouse().x < (X0+(p-q)+len) );
 
                         color = selected || over ? cyan : ui_ff;
 
@@ -1872,7 +1872,6 @@ int ui_dialog_render(Tigr *dialog, float wheel) {
                         p[_320] = p[-_320] = ui_ff;
 
                         // horizontal segment
-                        if(s+1==segments) len = w - (p-q) - (olen&1);
                         TPixel *end = p + len; p += 2;
                         if( selected ) // solid
                             for( int x = 0; x <= len-4; ++x ) *p++ = color;
@@ -1889,7 +1888,7 @@ int ui_dialog_render(Tigr *dialog, float wheel) {
 
                     // value
                     int value = options[i].slidermin + dt * range;
-                    ui_print(dialog, ui_x, ui_y, ui_colors, va("%3d", value)); // value
+                    ui_print(dialog, ui_x, ui_y, ui_colors, va("%3d", (int)(dt * 100))); // value
 
                     // progress bar
                     TPixel *p = &dialog->pix[ Y0 * dialog->w ];
@@ -1897,19 +1896,18 @@ int ui_dialog_render(Tigr *dialog, float wheel) {
                     for( int x = at+(at&1); x < x1; ++x ) p[x++] = ui_ff;
 
                     // triangle marker
-                    TPixel color = hovered && M.lb ? tigrRGB(0,255,255) : ui_ff;
-                    tigrLine(dialog, at-0,Y0+1, at+0+1,Y0+1, color);
-                    tigrLine(dialog, at-1,Y0+2, at+1+1,Y0+2, color);
-                    tigrLine(dialog, at-2,Y0+3, at+2+1,Y0+3, color);
+                    tigrLine(dialog, at-0,Y0+1, at+0+1,Y0+1, ui_ff);
+                    tigrLine(dialog, at-1,Y0+2, at+1+1,Y0+2, ui_ff);
+                    tigrLine(dialog, at-2,Y0+3, at+2+1,Y0+3, ui_ff);
 
                 }
 
                 static int dragging = -1;
-                if( !M.lb ) dragging = -1;
+                if( !mouse().lb ) dragging = -1;
                 else {
                     if( dragging == -1 ) if( hovered ) dragging = i;
                     if( dragging ==  i ) {
-                        dt = (tigrClamp(M.x, X0, X0 + w) - X0) / w;
+                        dt = (tigrClamp(mouse().x, X0, X0 + w) - X0) / w;
                         *options[i].value = snapped;
                     }
                 }
@@ -1944,7 +1942,7 @@ int ui_dialog_render(Tigr *dialog, float wheel) {
         }
         else {
             // abort
-            if( key_pressed(TK_ESCAPE) || M.rb || (gamepad(1) & (PAD_B|PAD_ST)) )
+            if( key_pressed(TK_ESCAPE) || mouse().rb || (gamepad(1) & (PAD_B|PAD_ST)) )
                 ui_dialog_new(NULL);
         }
     }

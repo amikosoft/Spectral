@@ -119,8 +119,8 @@ void hexdump( const void *ptr, unsigned len ) {
 }
 
 
-const char* app_loadfile(const char *cwd) {
-    char buf[DIR_MAX] = {0}; if(!cwd) getcwd(buf, DIR_MAX), cwd = buf;
+const char* app_loadfile() {
+    char cwd[DIR_MAX] = {0}; getcwd(cwd, DIR_MAX);
 #ifdef TFD_IMPLEMENTATION
     const char *windowTitle = NULL;
     const char *filterHints = NULL; // "image files"
@@ -211,23 +211,17 @@ const char *abspath(const char *rel_path) { // convert relative path to absolute
     return normpath(result);
 }
 
-#include <stdarg.h>
-char *va(const char *, ...);
-
 const char *relpath(const char *abs_path, const char *cwd) { // convert absolute path to relative. do not free()
     if( !abs_path[0] ) return "";
 
     static char result[DIR_MAX]; result[0] = '\0';
-
-    abs_path = va("%s", normpath(abs_path));
-    cwd = va("%s", normpath(cwd));
 
     // handle cases where paths are indentical or subfolders
     const char *mismatch = cmppath(abs_path, cwd);
     if( !mismatch ) {
         strcpy(result, "./");
     }
-    else if( (mismatch - abs_path) == strlen(cwd) ) {
+    else if( mismatch > abs_path ) {
         strcpy(result, "./");
         strcat(result, mismatch);
     }
@@ -238,7 +232,7 @@ const char *relpath(const char *abs_path, const char *cwd) { // convert absolute
             if( strchr("/\\", abs_path[i]) ) last_slash = i;
         }
         int up_levels = 0;
-        for( unsigned i = last_slash+1; cwd[i]; i++ ) {
+        for( unsigned i = last_slash; cwd[i]; i++ ) {
             up_levels += !!strchr("/\\", cwd[i]);
         }
 

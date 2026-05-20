@@ -553,7 +553,7 @@ void rescan(const char *folder) {
     if(!folder) return;
     if(ZX_PLAYER) return; // zxplayer has no library
 
-    char *copy = va("%s", folder); folder = copy;
+    char *copy = va("%s", folder ? folder : ""); folder = copy;
     if( ZX_FOLDER ) free(ZX_FOLDER); ZX_FOLDER = STRDUP(folder);
 
     printf("scanning `%s` folder...\n", folder);
@@ -1002,6 +1002,9 @@ char* game_browser_v2() {
 
     int selection[2] = {0};
 
+    extern int cmdkey;
+    extern const char *cmdarg;
+
     // handle input
     struct mouse m = mouse();
     int up = key_repeat( TK_UP); up += key_repeat(PADVK_U);
@@ -1016,7 +1019,6 @@ char* game_browser_v2() {
     const int LINE_HEIGHT = 11;
     const int UPPER_SPACING = 2;
     const int BOTTOM_SPACING = 3 * LINE_HEIGHT;
-
     // vars
 
     static int page = 0;
@@ -1070,8 +1072,6 @@ char* game_browser_v2() {
                 if( tab == (tabs+i) ) {
                     // reclick
                     if( *tab == '\x17' ) {
-                        extern int cmdkey;
-                        extern const char *cmdarg;
                         cmdkey = 'SCAN';
                         cmdarg = 0; // ZX_FOLDER;
                     }
@@ -1114,9 +1114,7 @@ char* game_browser_v2() {
         selected = scroll = 0; // reset keyboard scroller
 
         if( *tab == '\x17' ) {
-            extern int cmdkey;
-            extern const char *cmdarg;
-            do_once cmdkey = 'SCAN', cmdarg = ZX_FOLDER;
+            cmdkey = 'SCAN', cmdarg = ZX_FOLDER;
 
             if( background_texture ) free(background_texture), background_texture = 0;
             background_texture = thumbnail(VRAM, 6912, 1, ZXFlashFlag);

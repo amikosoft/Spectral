@@ -13,6 +13,56 @@ extern Tigr *app;
 #define window_title(title) tigrTitle(app,title)
 void    window_override_icons();
 
+char *app_clipboard;
+unsigned gamepad(int);
+
+static int key_char[16] = {0}, key_chars = 0; // key_char = tigrReadChar(app);
+#define key_char(idx) (key_char[(idx) % countof(key_char)])
+#define key_read() do {\
+    memset(key_char,0,sizeof(key_char)); \
+    key_chars = 0; \
+    do key_char[key_chars++] = tigrReadChar(app); while( key_chars < countof(key_char) && key_char[key_chars-1] ); \
+} while(0)
+#define key_any() (key_chars > 1 || (key_chars == 1 && key_char[0] != 0))
+
+int tigrKeyHeld_(Tigr *app, int vk) {
+    assert(vk < 512);
+    if( vk <= 16 ) return /*(gamepad(-1) & (1<<vk)) **/ (gamepad(1) & (1<<vk));
+    return tigrKeyHeld(app, vk);
+}
+int tigrKeyDown_(Tigr *app, int vk) {
+    assert(vk < 512);
+    if( vk <= 16 ) return (gamepad(-1) & (1<<vk)) < (gamepad(1) & (1<<vk));
+    return tigrKeyDown(app, vk);
+}
+int tigrKeyUp_(Tigr *app, int vk) {
+    assert(vk < 512);
+    if( vk <= 16 ) return (gamepad(-1) & (1<<vk)) > (gamepad(1) & (1<<vk));
+    return tigrKeyUp(app, vk);
+}
+
+#define key_held(keycode) (!!(tigrKeyHeld_(app, keycode)))
+#define key_down(keycode) (!!tigrKeyDown_(app, keycode))
+#define key_trigger(keycode) (!!tigrKeyDown_(app, keycode)) // @todo: deprecate me, use key_down() instead
+#define key_pressed(keycode) (!!(tigrKeyDown_(app, keycode) || tigrKeyHeld_(app, keycode)))
+#define key_released(keycode) (!!tigrKeyUp_(app, keycode))
+
+int key_repeat_(unsigned char vk, int table[256]) {
+    table[vk] *= !!key_pressed(vk);
+    table[vk] += !!key_pressed(vk);
+    return table[vk] == 1 || table[vk] > 32;
+}
+int key_repeat(unsigned char vk) {
+    static int table[256] = {0}; // @fixme: table[num_windows][256];
+    return key_repeat_(vk, table);
+}
+int key_longpress(unsigned char vk) {
+    static int table[256] = {0}; // @fixme: table[num_windows][256];
+    table[vk] *= !!key_pressed(vk);
+    table[vk] += !!key_pressed(vk);
+    return table[vk] == 40; // 50==1.00s, 40==0.80s
+}
+
 char*   prompt(const char *title, const char *caption, const char *defaults );
 #define alert(body) alert("Warning", body)
 void    die(const char *msg);
@@ -104,21 +154,7 @@ void window_override_icons() {
     }
     SetWindowsHookEx(WH_CBT, (HOOKPROC)window_create_callback, NULL, GetCurrentThreadId());
 }
-void window_replace_icons(HWND hwndMain, const char *pathfile_ico) {
-    HICON hIcon32 = (HICON)LoadImageA(NULL, pathfile_ico, IMAGE_ICON, 32, 32, LR_LOADFROMFILE); // @leak
-    HICON hIcon16 = (HICON)LoadImageA(NULL, pathfile_ico, IMAGE_ICON, 16, 16, LR_LOADFROMFILE); // @leak
 
-    // Set on the window itself (title bar + taskbar)
-    if(hIcon32) SendMessage(hwndMain, WM_SETICON, ICON_BIG,   (LPARAM)hIcon32);
-    if(hIcon16) SendMessage(hwndMain, WM_SETICON, ICON_SMALL, (LPARAM)hIcon16);
-
-    // Also update the class (helps with Alt+Tab consistency)
-    if(hIcon32) SetClassLongPtr(hwndMain, GCLP_HICON,   (LONG_PTR)hIcon32);
-    if(hIcon16) SetClassLongPtr(hwndMain, GCLP_HICONSM, (LONG_PTR)hIcon16);
-
-    /**/ if(hIcon32) appIcon = hIcon32;
-    else if(hIcon16) appIcon = hIcon16;
-}
 #else
 
 char* prompt(const char *title, const char *body, const char *defaults ) {

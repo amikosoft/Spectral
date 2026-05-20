@@ -4463,13 +4463,6 @@ void _tigrOnCocoaEvent(id event, id window) {
             uint16_t keyCode = objc_msgSend_t(unsigned short)(event, sel("keyCode"));
             int tigrKey = _tigrKeyFromOSX(keyCode);
 
-#if 1 // @r-lyeh
-            if( tigrKey == TK_RETURN && !win->prev[TK_RETURN] && win->keys[TK_ALT] )
-                objc_msgSend_void_id(window, sel("toggleFullScreen:"), window),
-                win->flags ^= TIGR_FULLSCREEN;
-            else
-#endif
-
             // Ignore keyboard repeats
             if (!win->keys[tigrKey]) {
                 win->keys[tigrKey] = 1;
@@ -4482,6 +4475,12 @@ void _tigrOnCocoaEvent(id event, id window) {
                     win->lastChar = decoded;
                 }
             }
+
+#if 1 // @r-lyeh
+            if( win->keys[TK_ALT] && win->keys[TK_RETURN] && !win->prev[TK_RETURN] )
+            objc_msgSend_void_id(window, sel("toggleFullScreen:"), window),
+            win->flags ^= TIGR_FULLSCREEN;
+#endif
 
             // Pass through cmd+key
             if (win->keys[TK_LWIN]) {
@@ -5455,32 +5454,6 @@ static void tigrHideCursor(TigrInternal* win) {
     XFreePixmap(win->dpy, bitmapNoData);
 }
 
-#if 1 // @r-lyeh
-#ifndef _NET_WM_STATE_TOGGLE
-#define _NET_WM_STATE_TOGGLE 2
-#endif
-static int tigrToggleFullscreen(TigrInternal* win)
-{
-    XEvent xev;
-    long evmask = SubstructureRedirectMask | SubstructureNotifyMask;
-
-    xev.type = ClientMessage;
-    xev.xclient.window = win->win;
-    xev.xclient.message_type = XInternAtom(dpy, "_NET_WM_STATE", False); //_NET_WM_STATE;
-    xev.xclient.format = 32;
-    xev.xclient.data.l[0] = _NET_WM_STATE_TOGGLE; /* action */
-    xev.xclient.data.l[1] = XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN", False); /* first property to toggle */
-    xev.xclient.data.l[2] = 0;  /* no second property to toggle */
-    xev.xclient.data.l[3] = 1;  /* source indication: application */
-    xev.xclient.data.l[4] = 0;  /* unused */
-
-    if(!XSendEvent(win->dpy, DefaultRootWindow(win->dpy), 0, evmask, &xev)) {
-        return 0; // err
-    }
-    return 1; // ok
-}
-#endif
-
 typedef struct {
     unsigned long flags;
     unsigned long functions;
@@ -5522,7 +5495,7 @@ Tigr* tigrWindow(int w, int h, const char* title, int flags) {
                          CWColormap | CWEventMask, &swa);
     XMapWindow(dpy, xwin);
 
-    if (0 && flags & TIGR_FULLSCREEN) { //< @r-lyeh: disabled here. enabled at bottom of function
+    if (flags & TIGR_FULLSCREEN) {
         // https://superuser.com/questions/1680077/does-x11-actually-have-a-native-fullscreen-mode
         Atom wm_state   = XInternAtom (dpy, "_NET_WM_STATE", true );
         Atom wm_fullscreen = XInternAtom (dpy, "_NET_WM_STATE_FULLSCREEN", true );
@@ -5605,14 +5578,6 @@ Tigr* tigrWindow(int w, int h, const char* title, int flags) {
     tigrPosition(bmp, win->scale, bmp->w, bmp->h, win->pos);
     tigrGAPICreate(bmp);
     tigrGAPIBegin(bmp);
-
-#if 1 // @r-lyeh
-    if(win->flags & TIGR_FULLSCREEN) {
-        if(!tigrToggleFullscreen(win)) {
-            win->flags &= ~TIGR_FULLSCREEN;
-        }
-    }
-#endif
 
     return bmp;
 }
@@ -5850,6 +5815,32 @@ static void tigrInterpretChar(TigrInternal* win, Window root, unsigned int keyco
     }
 }
 
+#if 1 // @r-lyeh
+#ifndef _NET_WM_STATE_TOGGLE
+#define _NET_WM_STATE_TOGGLE 2
+#endif
+static int tigrToggleFullscreen(TigrInternal* win)
+{
+    XEvent xev;
+    long evmask = SubstructureRedirectMask | SubstructureNotifyMask;
+
+    xev.type = ClientMessage;
+    xev.xclient.window = win->win;
+    xev.xclient.message_type = XInternAtom(dpy, "_NET_WM_STATE", False); //_NET_WM_STATE;
+    xev.xclient.format = 32;
+    xev.xclient.data.l[0] = _NET_WM_STATE_TOGGLE; /* action */
+    xev.xclient.data.l[1] = XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN", False); /* first property to toggle */
+    xev.xclient.data.l[2] = 0;  /* no second property to toggle */
+    xev.xclient.data.l[3] = 1;  /* source indication: application */
+    xev.xclient.data.l[4] = 0;  /* unused */
+
+    if(!XSendEvent(win->dpy, DefaultRootWindow(win->dpy), 0, evmask, &xev)) {
+        return 0; // err
+    }
+    return 1; // ok
+}
+#endif
+
 static void tigrProcessInput(TigrInternal* win, int winWidth, int winHeight) {
     {
         Window focused;
@@ -5919,17 +5910,6 @@ static void tigrProcessInput(TigrInternal* win, int winWidth, int winHeight) {
                     KeySym keySym = XkbKeycodeToKeysym(win->dpy, keyCode, 0, 0);
                     if (keySym != NoSymbol) {
                         int key = tigrKeyFromX11(keySym);
-
-#if 1 // @r-lyeh
-                        if( thisBit )
-                        if( key == TK_RETURN && !win->prev[TK_RETURN] )
-                        if( win->keys[TK_LALT] || win->keys[TK_RALT] )
-                        if( tigrToggleFullscreen(win) ) {
-                            win->flags ^= TIGR_FULLSCREEN;
-                            continue;
-                        }
-#endif
-
                         win->keys[key] = !!thisBit; //< @r-lyeh: added !!
                         tigrUpdateModifiers(win);
 
@@ -5942,6 +5922,13 @@ static void tigrProcessInput(TigrInternal* win, int winWidth, int winHeight) {
         }
     }
     memcpy(prevKeys, keys, 32);
+
+#if 1 // @r-lyeh
+    if( win->keys[TK_LALT] || win->keys[TK_RALT] )
+    if( win->keys[TK_RETURN] && !win->prev[TK_RETURN] )
+    if( tigrToggleFullscreen(win) )
+        win->flags ^= TIGR_FULLSCREEN;
+#endif
 
     XEvent event;
     while (XCheckTypedWindowEvent(win->dpy, win->win, ClientMessage, &event)) {
