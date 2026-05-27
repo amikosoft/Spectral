@@ -1,222 +1,111 @@
-
 name: Create Release
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number (e.g. v1.05 becomes 105)'
+        description: "Version number (e.g. v1.05 becomes 105)"
         required: true
 
 jobs:
+
+  # ---------------------------------------------------------
+  # 1. CREATE RELEASE
+  # ---------------------------------------------------------
   create-release:
     runs-on: ubuntu-latest
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ github.event.inputs.version }}
     steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
+
       - name: Generate Release Notes
-        id: generate_release_notes
+        id: notes
         run: |
-          # Get commits since last tag or from beginning if no tags exist
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          echo "## What's Changed" > notes.md
           if [ -z "$LAST_TAG" ]; then
-            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
+            git log --pretty=format:"- %s (%h)" --no-merges >> notes.md
           else
-            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+            git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges >> notes.md
           fi
-          echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
-          echo "## What's Changed" >> $GITHUB_ENV
-          echo "$COMMITS" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+
       - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+        run: |
+          gh release create "${{ github.event.inputs.version }}" \
+            --title "Spectral ${{ github.event.inputs.version }}" \
+            --notes-file notes.md \
+            --draft
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.event.inputs.version }}
-          release_name: Spectral ${{ github.event.inputs.version }}
-          body: ${{ env.RELEASE_NOTES }}
-          draft: true
-          prerelease: false
 
+  # ---------------------------------------------------------
+  # 2. BUILD UBUNTU
+  # ---------------------------------------------------------
   build-ubuntu:
     needs: create-release
-    runs-on: ubuntu-latest ## ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+
       - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential libgtk-3-dev
+
       - name: Build Ubuntu
+        run: sh MAKE.bat
+
+      - name: Upload Ubuntu Binary
         run: |
-          sh MAKE.bat
-#          strip --strip-all SpectralNoZXDB.linux # this is required for next polyfill step
-#      - name: Patch glibc for backwards compatibility
-#        uses: lmangani/polyfill-glibc-action@main
-#        id: polyfill
-#        with:
-#          glibc: "2.17"
-#          target: "./SpectralNoZXDB.linux"
-#      - name: Compress 'n Package
-#        run: |
-#          #upx -9 SpectralNoZXDB.linux # upx cannot pack polyfill'ed binaries
-#          dd if=src/res/embed >> SpectralNoZXDB.linux
-#          dd if=src/res/zxdb/Spectral.db.gz >> SpectralNoZXDB.linux
-#          dd if=src/res/embed >> SpectralNoZXDB.linux
-      - name: Upload Ubuntu Artifact
-        uses: actions/upload-release-asset@v1
+          gh release upload "${{ needs.create-release.outputs.version }}" \
+            Spectral.linux#Spectral-${{ needs.create-release.outputs.version }}.linux \
+            --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./Spectral.linux
-          asset_name: Spectral-${{ github.event.inputs.version }}.linux
-          asset_content_type: application/x-executable
 
+  # ---------------------------------------------------------
+  # 3. BUILD MACOS ARM
+  # ---------------------------------------------------------
   build-macos-arm:
     needs: create-release
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Build macOS
-        run: sh MAKE.bat
-      - name: Upload macOS Artifact
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./Spectral.dmg
-          asset_name: Spectral-${{ github.event.inputs.version }}-ARM64.dmg
-          asset_content_type: application/x-apple-diskimage
-      - name: Create source archive
-        run: |
-          git archive --format=tar.gz --output=source.tar.gz HEAD
-      - name: Upload sources
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./source.tar.gz
-          asset_name: Spectral-${{ github.event.inputs.version }}-ARM64.tar.gz
-          asset_content_type: application/gzip
+      - uses: actions/checkout@v4
 
+      - name: Build macOS ARM
+        run: sh MAKE.bat
+
+      - name: Upload macOS ARM dmg
+        run: |
+          gh release upload "${{ needs.create-release.outputs.version }}" \
+            Spectral.dmg#Spectral-${{ needs.create-release.outputs.version }}-ARM64.dmg \
+            --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------
+  # 4. BUILD MACOS INTEL
+  # ---------------------------------------------------------
   build-macos-intel:
     needs: create-release
-    runs-on: macos-15-intel ##macos-13 > deprecated ##macos-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Build macOS
-        run: sh MAKE.bat
-      - name: Upload macOS Artifact
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./Spectral.dmg
-          asset_name: Spectral-${{ github.event.inputs.version }}-X64.dmg
-          asset_content_type: application/x-apple-diskimage
-      - name: Create source archive
-        run: |
-          git archive --format=tar.gz --output=source.tar.gz HEAD
-      - name: Upload sources
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./source.tar.gz
-          asset_name: Spectral-${{ github.event.inputs.version }}-X64.tar.gz
-          asset_content_type: application/gzip
-
-  build-windows:
-    needs: create-release
-    runs-on: windows-latest #-2022
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
-      - uses: ilammy/msvc-dev-cmd@v1 # for rc.exe
-      - name: Build Windows
-        run: ./MAKE.bat
 
-      # required for the artifact to be available on the GitHub server
-      - name: upload-unsigned-artifact
-        id: upload-unsigned-artifact
-        uses: actions/upload-artifact@v4
-        with: 
-          path: ./Spectral.exe
-          #retention-days: 1
+      - name: Build macOS Intel
+        run: sh MAKE.bat
 
-      # Submit signing request to SignPath
-      - name: Sign with SignPath
-        id: optional_step_id
-        uses: signpath/github-action-submit-signing-request@v1.1
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: 'spectral'
-          signing-policy-slug: 'release-signing' # 'test-signing'
-          github-artifact-id: ${{ steps.upload-unsigned-artifact.outputs.artifact-id }}
-          #artifact-configuration-slug: ${{ matrix.vscode_arch }}
-          wait-for-completion: true
-          # 3h to manually approve the request
-          wait-for-completion-timeout-in-seconds: 10800
-          output-artifact-directory: signed/
-
-      - name: Concat ZXDB
+      - name: Upload macOS Intel dmg
         run: |
-          ./MAKE.bat cmd copy /b/y Spectral.exe               spectral-unsigned-main.exe
-          ./MAKE.bat cmd copy /b/y Spectral.exe+src\res\embed spectral-unsigned-player.exe
-          ./MAKE.bat cmd copy /b/y signed\*.exe               spectral-signed-main.exe
-          ./MAKE.bat cmd copy /b/y signed\*.exe+src\res\embed spectral-signed-player.exe
-
-      # Upload the signed artifact (2)
-      - name: Upload Signed Windows Artifact
-        uses: actions/upload-release-asset@v1
+          gh release upload "${{ needs.create-release.outputs.version }}" \
+            Spectral.dmg#Spectral-${{ needs.create-release.outputs.version }}-X64.dmg \
+            --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: spectral-signed-main.exe
-          asset_name: Spectral-${{ github.event.inputs.version }}.exe
-          asset_content_type: application/vnd.microsoft.portable-executable
 
-      # Upload the unsigned artifact (4)
-      - name: Upload Unsigned Windows Artifact
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: spectral-unsigned-main.exe
-          asset_name: Spectral-${{ github.event.inputs.version }}-Unsigned.exe
-          asset_content_type: application/vnd.microsoft.portable-executable
-
-      # Upload the signed artifact (2)
-      - name: Upload Signed Windows Artifact
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: spectral-signed-player.exe
-          asset_name: Spectral-${{ github.event.inputs.version }}-Player.exe
-          asset_content_type: application/vnd.microsoft.portable-executable
-
-      # Upload the unsigned artifact (4)
-      - name: Upload Unsigned Windows Artifact
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: spectral-unsigned-player.exe
-          asset_name: Spectral-${{ github.event.inputs.version }}-Unsigned-Player.exe
-          asset_content_type: application/vnd.microsoft.portable-executable
-
+  # ---------------------------------------------------------
+  # 5. BUILD WINDOWS
+  # ---------------------------------------------------------
+  build-windows:
+    needs
