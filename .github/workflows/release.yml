@@ -8,9 +8,6 @@ on:
         description: 'Version number (e.g. v1.05 becomes 105)'
         required: true
 
-permissions:
-  contents: write
-
 jobs:
   create-release:
     runs-on: ubuntu-latest
@@ -23,6 +20,7 @@ jobs:
       - name: Generate Release Notes
         id: generate_release_notes
         run: |
+          # Get commits since last tag or from beginning if no tags exist
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           if [ -z "$LAST_TAG" ]; then
             COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
@@ -35,14 +33,15 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ github.event.inputs.version }}
-          name: Spectral ${{ github.event.inputs.version }}
-          body: ${{ env.RELEASE_NOTES }}
-          draft: true
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          release_name: Spectral ${{ github.event.inputs.version }}
+          body: ${{ env.RELEASE_NOTES }}
+          draft: true
+          prerelease: false
 
   build-ubuntu:
     needs: create-release
@@ -93,7 +92,7 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ./Spectral.dmg
-          asset_name: Spectral-${{ github.event.inputs.version }}-ARM.dmg
+          asset_name: Spectral-${{ github.event.inputs.version }}-ARM64.dmg
           asset_content_type: application/x-apple-diskimage
       - name: Create source archive
         run: |
@@ -105,7 +104,7 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ./source.tar.gz
-          asset_name: Spectral-${{ github.event.inputs.version }}-ARM.tar.gz
+          asset_name: Spectral-${{ github.event.inputs.version }}-ARM64.tar.gz
           asset_content_type: application/gzip
 
   build-macos-intel:
